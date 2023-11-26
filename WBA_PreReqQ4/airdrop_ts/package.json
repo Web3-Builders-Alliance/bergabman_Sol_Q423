@@ -1,0 +1,28 @@
+{
+  "name": "airdrop",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "keygen": "ts-node ./keygen.ts",
+    "airdrop": "ts-node ./airdrop.ts",
+    "transfer": "ts-node ./transfer.ts",
+    "enroll": "ts-node ./enroll.ts",
+    "ctf": "ts-node ./ctf.ts"
+  },
+  "packageManager": "yarn@4.0.2",
+  "dependencies": {
+    "@project-serum/anchor": "^0.26.0",
+    "@solana/web3.js": "^1.87.6",
+    "@types/node": "^20.9.0",
+    "bs58": "^5.0.0",
+    "mocha": "^10.2.0",
+    "prompt-sync": "^4.2.0",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.4",
+    "@types/prompt-sync": "^4.2.3",
+    "ts-node": "^10.9.1"
+  }
+}

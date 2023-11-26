@@ -1,0 +1,14 @@
+[package]
+name = "airdrop_rs"
+author = "bergabman"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+solana-sdk = "1.17.5"
+solana-client = "1.17.5"
+solana-program = "1.17.5"
+bs58 = "^0.5.0"
+borsh = { version = "1.2.0", features = ["derive"] }
+# solana-idlgen = { git = "https://github.com/deanmlittle/solana-idlgen.git" }
+solana-idlgen = { git = "https://github.com/bergabman/solana-idlgen.git" }
