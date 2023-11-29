@@ -1,6 +1,7 @@
 import { Keypair, Connection, Commitment, PublicKey } from "@solana/web3.js";
 import { createMint } from '@solana/spl-token';
 import wallet from "../../../../wba-wallet.json"
+import mint_wallet from "./mint_keypair_wallet.json"
 
 const keypair = Keypair.fromSecretKey(new Uint8Array(wallet));
 
