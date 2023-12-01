@@ -1,7 +1,7 @@
 import { Connection, Keypair, SystemProgram, PublicKey, Commitment, LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { Program, Wallet, AnchorProvider, Address, BN } from "@project-serum/anchor"
 import { WbaVault, IDL } from "./programs/wba_vault";
-import wallet from "../../../../wba-wallet.json"
+import wallet from "../../../wba-wallet.json"
 
 // Import our keypair from the wallet file
 const keypair = Keypair.fromSecretKey(new Uint8Array(wallet));
@@ -14,7 +14,6 @@ const connection = new Connection("https://api.devnet.solana.com");
 
 // Create our anchor provider
 const provider = new AnchorProvider(connection, new Wallet(keypair), { commitment });
-
 
 // Create our program
 const program = new Program<WbaVault>(IDL, "D51uEDHLbWAxNfodfQDv7qkp8WZtxrhi3uganGbNos7o" as Address, provider);
@@ -35,8 +34,8 @@ const [vaultAuth, _bump] = PublicKey.findProgramAddressSync(
 // Create the vault key
 const vaultKeys = [Buffer.from("vault"), vaultAuth.toBuffer()];
 const [vaultKey, _bump2] = PublicKey.findProgramAddressSync(
-  vaultKeys,
-  program.programId
+    vaultKeys,
+    program.programId
 );
 
 // Execute our enrollment transaction

@@ -1,0 +1,31 @@
+Streaming transaction logs mentioning 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL. Confirmed commitment
+Transaction executed in slot 1349:
+  Signature: 2UCk8GfHyZmazt53ihUXa6Gcowr3tC9vFeBdFFxo1x9YXknktiLrgPZTjo7MpnQMiYWKVWB5aCojDpCf7zCSTaCZ
+  Status: Ok
+  Log Messages:
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL invoke [1]
+    Program log: Instruction: Deposit
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL consumed 5322 of 200000 compute units
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL success
+Transaction executed in slot 1349:
+  Signature: 57Usf8YnSxG6nxcxEU5x9x4veVAwMPgSJaqjybjoU4SnvDTMSkeaiQRqEwWG3GFixNH2P4rVKsGpLszeq6dEAxLD
+  Status: Ok
+  Log Messages:
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL invoke [1]
+    Program log: Instruction: Close
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL consumed 5385 of 200000 compute units
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL success
+Transaction executed in slot 1350:
+  Signature: 57Usf8YnSxG6nxcxEU5x9x4veVAwMPgSJaqjybjoU4SnvDTMSkeaiQRqEwWG3GFixNH2P4rVKsGpLszeq6dEAxLD
+  Status: Ok
+  Log Messages:
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL invoke [1]
+    Program log: Instruction: Close
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL consumed 5385 of 200000 compute units
+    Program 5CGXgvPRVtW81njC68V46DKzoXFoysteMezTS67JL4iL success

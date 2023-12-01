@@ -1,7 +1,7 @@
 import { Connection, Keypair, SystemProgram, PublicKey, Commitment } from "@solana/web3.js"
 import { Program, Wallet, AnchorProvider, Address, BN } from "@project-serum/anchor"
 import { WbaVault, IDL } from "./programs/wba_vault";
-import wallet from "../../../../wba-wallet.json"
+import wallet from "../../../wba-wallet.json"
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
 // Import our keypair from the wallet file
