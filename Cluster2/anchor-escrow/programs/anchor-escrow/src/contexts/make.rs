@@ -41,13 +41,13 @@ pub struct Make<'info> {
 }
 
 impl<'info> Make<'info> {
-    pub fn save_escrow(&mut self, seed: u64, receive: u64, bumps: &MakeBumps) -> Result<()> {
+    pub fn save_escrow(&mut self, seed: u64, receive: u64, bump: u8) -> Result<()> {
         self.escrow.set_inner(Escrow {
             seed,
             mint_a: self.mint_a.key(),
             mint_b: self.mint_b.key(),
             receive,
-            bump: bumps.escrow,
+            bump: bump,
         });
         Ok(())
     }
