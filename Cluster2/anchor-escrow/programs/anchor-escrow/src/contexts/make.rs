@@ -45,7 +45,7 @@ impl<'info> Make<'info> {
         self.escrow.set_inner(Escrow {
             seed,
             mint_a: self.mint_a.key(),
-            mint_b: self.mint_a.key(),
+            mint_b: self.mint_b.key(),
             receive,
             bump: bumps.escrow,
         });
