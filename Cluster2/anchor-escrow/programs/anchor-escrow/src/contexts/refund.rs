@@ -87,3 +87,38 @@ impl<'info> Refund<'info> {
         Ok(())
     }
 }
+
+#[derive(Accounts)]
+pub struct Refund2<'info> {
+    #[account(mut)]
+    maker:  Signer<'info>,
+
+    mint_a: Account<'info, Mint>,
+
+    #[account(
+        mut, 
+        associated_token::mint = mint_a,
+        associated_token::authority = maker,
+    )]
+    maker_ata_a: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        close = maker,
+        seeds = [b"escrow".as_ref(), maker.key().as_ref(), escrow.seed.to_le_bytes().as_ref()],
+        bump = escrow.bump,
+    )]
+    escrow: Account<'info, Escrow>,
+
+    #[account(
+        seeds = [b"vault", escrow.key().as_ref()], 
+        bump,
+        token::mint = mint_a,
+        token::authority = escrow,
+    )]
+    vault: Account<'info, TokenAccount>,
+
+    system_program: Program<'info, System>,
+    token_program: Program<'info, Token>,
+    associated_token_program: Program<'info, AssociatedToken>,
+}

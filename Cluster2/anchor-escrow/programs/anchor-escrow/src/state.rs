@@ -10,6 +10,7 @@ pub struct Escrow {
 }
 
 impl Escrow {
+    // pub const LEN: usize = std::mem::size_of::<Escrow>();
     pub const LEN: usize = std::mem::size_of::<u64>()
         + std::mem::size_of::<Pubkey>()
         + std::mem::size_of::<Pubkey>()
