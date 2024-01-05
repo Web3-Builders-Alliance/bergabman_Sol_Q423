@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
 
     while let Some(acc) = stream.next().await {
         if acc.value.account.executable {
-            let program_id = acc.clone().value.pubkey;
+            let program_id = acc.value.pubkey.clone();
             if let Ok(UiAccountData::Json(parsed_acc)) =
                 UiAccountData::try_from(acc.value.account.data.clone())
             {
