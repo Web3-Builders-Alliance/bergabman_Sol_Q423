@@ -1,0 +1,2 @@
+ A simple cli tool to collect newly deployed programs from devnet for analysis.
+ PubSub subscribe to the BPFUpgradeabeLoader, get notification from all account changes that's owned by the loader, check if the account is executable and if the data was deployed within the last 100 slots, and save the program data to a file.

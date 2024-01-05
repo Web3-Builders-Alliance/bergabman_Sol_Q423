@@ -1,9 +1,10 @@
 use anyhow::Result;
-use futures::prelude::stream::StreamExt;
+use futures::{FutureExt, StreamExt};
 use solana_account_decoder::{UiAccountData, UiAccountEncoding};
 use solana_client::nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient};
 use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
-use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
+use solana_sdk::bpf_loader_upgradeable::{self, UpgradeableLoaderState};
+use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, account_utils::StateMut};
 use std::str::FromStr;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -11,15 +12,13 @@ use tokio::io::AsyncWriteExt;
 const WS_URL: &str = "wss://api.devnet.solana.com";
 const DEVNET_URL: &str = "https://api.devnet.solana.com";
 
+#[allow(unused_variables)]
 #[tokio::main]
 async fn main() -> Result<()> {
     // get all programs owned by the bpf upgradeable loader
 
     let rpc = RpcClient::new(DEVNET_URL.into());
-    // let program_accs = rpc.get_program_accounts_with_config(&bpf_loader).await?;
-    // println!("program accs len {}", program_accs.len());
-
-    let bpf_loader = Pubkey::from_str("BPFLoaderUpgradeab1e11111111111111111111111").unwrap();
+    let bpf_loader = bpf_loader_upgradeable::id();
 
     let config = RpcProgramAccountsConfig {
         filters: None,
@@ -38,24 +37,42 @@ async fn main() -> Result<()> {
 
     while let Some(acc) = stream.next().await {
         if acc.value.account.executable {
-            let program_id = acc.value.pubkey;
-            if let Ok(UiAccountData::Json(parsedacc)) =
-                UiAccountData::try_from(acc.value.account.data)
+            let program_id = acc.clone().value.pubkey;
+            if let Ok(UiAccountData::Json(parsed_acc)) =
+                UiAccountData::try_from(acc.value.account.data.clone())
             {
-                let program_data_id: String = parsedacc.parsed["info"]["programData"]
+                let program_data_id = parsed_acc.parsed["info"]["programData"]
                     .to_string()
                     .trim_matches('"')
                     .to_string();
 
-                if let Ok(program_data) = rpc
-                    .get_account_data(&Pubkey::from_str(&program_data_id).unwrap())
+                if let Ok(program_data_account) = rpc
+                    .get_account(&Pubkey::from_str(&program_data_id).unwrap())
                     .await
                 {
-                    let mut file = File::create(format!("{}.so", program_id)).await?;
-                    file.write_all(&program_data).await?;
+                    if let Ok(UpgradeableLoaderState::ProgramData {
+                        upgrade_authority_address,
+                        slot,
+                    }) = program_data_account.state()
+                    {
+                        if (slot + 100) < acc.context.slot {
+                            continue;
+                        }
+                        println!("acc {:#?}", &acc);
+                        println!("program last deploy slot {}", slot);
+                        println!("current slot {}", acc.context.slot);
+                        fileops(&program_id, &program_data_account.data).await?;
+                    }
                 }
             }
         }
     }
+    Ok(())
+}
+
+async fn fileops(program_id: &str, program_data: &Vec<u8>) -> Result<()> {
+    File::create(format!("{}.so", program_id))
+        .then(|file| async { file?.write_all(&program_data).await })
+        .await?;
     Ok(())
 }
