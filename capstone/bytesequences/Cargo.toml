@@ -1,0 +1,11 @@
+[package]
+name = "bytesequences"
+version = "0.1.0"
+edition = "2021"
+author = "bergabman"
+
+[dependencies]
+anyhow = "1.0.79"
+serde_json = "1.0"
+rayon = "1.8"
+kmp = "0.1.1"

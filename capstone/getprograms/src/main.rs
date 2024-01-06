@@ -61,6 +61,10 @@ async fn main() -> Result<()> {
                         println!("acc {:#?}", &acc);
                         println!("program last deploy slot {}", slot);
                         println!("current slot {}", acc.context.slot);
+                        let mut program_data_vec = program_data_account.data.clone();
+                        program_data_vec.retain(|b| b!=&0u8);
+                        println!("length {}", &program_data_account.data.len());
+                        println!("trimmed from 0s length {}", program_data_vec.len());
                         fileops(&program_id, &program_data_account.data).await?;
                     }
                 }

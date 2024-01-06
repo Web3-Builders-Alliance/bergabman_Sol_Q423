@@ -11,7 +11,7 @@ anchor_escrow = "7NBN3gJgmoe2x9un3KKH7yeEvV3TSrDavvQ9SN8VvQ3D"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "Devnet"
 wallet = "/home/dev/WBA/bergabman_Sol_Q423/wba-wallet.json"
 
 [scripts]
