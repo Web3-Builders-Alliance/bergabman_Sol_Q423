@@ -48,23 +48,13 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                         }
                     }
 
-                    if this_seq.1 > ((progs.len() * 100) / 70) {
+                    if this_seq.1 as f64 > (progs.len() as f64 * 0.7) {
                         let this_item = (
                             seq_string.clone(),
                             format!("{} appearances", this_seq.1),
                             format!("{} len", seq.len()),
                         );
-                        if !table.contains(&this_item) {
-                            let mut shorter_seq = false;
-                            for table_item in &table {
-                                if table_item.0.contains(&seq_string) {
-                                    shorter_seq = true;
-                                }
-                            }
-                            if !shorter_seq {
-                                table.push(this_item);
-                            }
-                        }
+                        table.push(this_item);
                     }
                 }
             }
