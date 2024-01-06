@@ -20,14 +20,21 @@ fn main() -> Result<()> {
 
 fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, String, String)>> {
     // sliding window analysis of byte sequences in all files
-    let mut table = vec![];
+    let mut table: Vec<(String, String, String)> = vec![];
+    let start = std::time::Instant::now();
     for (_program_name, program_data) in progs.iter() {
         // let mut byte_sequences: HashMap<String, u32> = HashMap::new();
-        for count in (32..256).rev() {
+        for count in (32..250).rev() {
             for seq in program_data.windows(count) {
                 let mut this_seq = (seq, 1);
+                
                 if String::from_utf8(seq.to_vec()).is_ok() {
                     let seq_string = String::from_utf8(seq.to_vec()).unwrap();
+                    for (table_item, _, _) in &table {
+                        if table_item.contains(&seq_string) {
+                            continue;
+                        }
+                    }
                     let kmp_table = kmp_table(seq);
                     let appearances: Vec<Option<usize>> = progs
                         .par_iter()
@@ -61,8 +68,16 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                     }
                 }
             }
-            println!("count: {}", count);
-            println!("table len {}", &table.len());
+            println!("\ncount: {}", count);
+            let now = std::time::Instant::now();
+            println!("runtime {}s", now.duration_since(start).as_secs());
+            if table.len() > 1 {
+                println!("table len {}", &table.len());
+                let table_string = serde_json::to_string_pretty(&table).unwrap();
+                println!("{}", &table_string);
+                fileops(&count.to_string(), table_string)?;
+            }
+            
         }
 
     }
