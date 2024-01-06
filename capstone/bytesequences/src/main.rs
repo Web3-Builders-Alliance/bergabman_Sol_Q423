@@ -27,7 +27,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
         for count in (32..250).rev() {
             for seq in program_data.windows(count) {
                 let mut this_seq = (seq, 1);
-                
+
                 if String::from_utf8(seq.to_vec()).is_ok() {
                     let seq_string = String::from_utf8(seq.to_vec()).unwrap();
                     for (table_item, _, _) in &table {
@@ -77,9 +77,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                 println!("{}", &table_string);
                 fileops(&count.to_string(), table_string)?;
             }
-            
         }
-
     }
 
     Ok(table)
