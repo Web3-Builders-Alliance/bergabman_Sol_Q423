@@ -68,7 +68,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
             file_count,
             progs.len()
         );
-        for count in (32..1600).rev() {
+        for count in (64..1024).rev() {
             let mut found_seq_skip = 0;
             'window: for seq in program_data.windows(count) {
                 if found_seq_skip > 0 {
@@ -109,12 +109,12 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
                     info!("seq_appeared: {} times", this_seq_appear);
                     found_seq_skip = seq.len();
                     table.push(Sequence::new(seq.to_vec(), this_seq_appear));
-                    fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string_pretty(&table)?)?;
+                    fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string(&table)?)?;
                 }
             }
         }
         if table.len() > 1 {
-            fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string_pretty(&table)?)?;
+            fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string(&table)?)?;
             info!("file saved {}", &program_name.to_string());
         }
     }
