@@ -1,7 +1,9 @@
 use anyhow::Result;
+use base64::{engine::general_purpose::STANDARD_NO_PAD as b64, Engine as _};
 use chrono::Utc;
 use kmp::{kmp_find_with_lsp_table, kmp_table};
 use rayon::prelude::*;
+use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::File,
@@ -15,22 +17,49 @@ fn main() -> Result<()> {
 
     let progs = read_files("./programs_downloaded")?;
     // rayon::ThreadPoolBuilder::new().num_threads(12).build_global().unwrap();
-    println!("analysis");
+    info!("analysis");
     let analysis = analyse_seqences(progs)?;
     let json_string = serde_json::to_string(&analysis).unwrap();
-    let _ = fileops("full_analysis.json", json_string);
+    fileops("full_analysis.json", json_string)?;
 
     Ok(())
 }
 
-fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, String, String)>> {
+#[derive(Serialize, Deserialize)]
+struct Sequence {
+    seq: Vec<u8>,
+    length: usize,
+    appear: usize,
+    seq_b64: String,
+    seq_str: Option<String>,
+}
+impl Sequence {
+    fn new(seq: Vec<u8>, appear: usize) -> Self {
+        let seq_b64 = b64.encode(&seq);
+        let length = seq.len().clone();
+        let seq_str =
+            String::from_utf8(seq.clone().to_vec()).map_or_else(|_| None, |str| Some(str));
+        Self {
+            seq,
+            length,
+            appear,
+            seq_b64,
+            seq_str,
+        }
+    }
+}
+
+#[allow(unused_assignments)]
+fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
     // sliding window analysis of byte sequences in all files
 
-    let mut table: Vec<(String, String, String)> = vec![];
+    // let mut table: Vec<(String, String, String)> = vec![];
+    let mut table: Vec<Sequence> = vec![];
     let start = std::time::Instant::now();
     let mut adjust = std::time::Instant::now();
     let mut file_count = 0;
-
+    let min_prcnt = (progs.len() as f64 / 100f64) * 70f64;
+    
     for (program_name, program_data) in progs.iter() {
         file_count += 1;
         info!(
@@ -39,11 +68,16 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
             file_count,
             progs.len()
         );
-        for count in (32..2046).rev() {
+        for count in (32..1600).rev() {
+            let mut found_seq_skip = 0;
             'window: for seq in program_data.windows(count) {
-                let mut this_seq = (seq, 1);
+                if found_seq_skip > 0 {
+                    found_seq_skip -= 1;
+                    continue 'window;
+                }
+                let mut this_seq_appear = 1;
                 let now = std::time::Instant::now();
-                if now.duration_since(adjust).as_secs() > 60 {
+                if now.duration_since(adjust).as_secs() > 120 {
                     adjust = std::time::Instant::now();
                     info!(
                         "seq_len: {}; runt {}s; table_len {} ",
@@ -53,50 +87,33 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                     );
                 }
 
-                if String::from_utf8(seq.to_vec()).is_ok() {
-                    let seq_string = String::from_utf8(seq.to_vec()).unwrap();
-                    let kmp_table = kmp_table(seq);
-                    // let table_appearances: Vec<Option<_>> = table
-                    let table_appearances =
-                        table.par_iter().find_map_any(|(table_string, _, _)| {
-                            kmp_find_with_lsp_table(seq, table_string.as_bytes(), &kmp_table)
-                        });
+                let kmp_table = kmp_table(seq);
+                let table_appearances = table.par_iter().find_map_any(|sequence| {
+                    kmp_find_with_lsp_table(seq, &sequence.seq, &kmp_table)
+                });
 
-                    if table_appearances.is_some() {
-                        continue 'window;
-                    }
+                if table_appearances.is_some() {
+                    continue 'window;
+                }
 
-                    let appearances: Vec<Option<usize>> = progs
-                        .par_iter()
-                        .map(|(_, program_data)| {
-                            kmp_find_with_lsp_table(seq, program_data, &kmp_table)
-                        })
-                        .collect();
-                    for thistime in appearances.iter() {
-                        if thistime.is_some() {
-                            this_seq.1 += 1;
-                        }
-                    }
+                let appearances: Vec<Option<usize>> = progs
+                    .par_iter()
+                    .map(|(_, program_data)| kmp_find_with_lsp_table(seq, program_data, &kmp_table))
+                    .collect();
 
-                    if this_seq.1 as f64 > (progs.len() as f64 * 0.7) {
-                        let prct = this_seq.1 as f64 / (progs.len() as f64 / 100f64);
-                        let this_item = (
-                            seq_string.clone(),
-                            format!(
-                                "appeared {} from {} files ({}%)",
-                                this_seq.1,
-                                progs.len(),
-                                prct
-                            ),
-                            format!("length {} bytes", seq.len()),
-                        );
-                        table.push(this_item);
-                    }
+                this_seq_appear = appearances
+                    .par_iter()
+                    .map(|seen| if seen.is_some() { 1 } else { 0 })
+                    .sum();
+
+                if this_seq_appear as f64 > min_prcnt {
+                    info!("seq_appeared: {} times", this_seq_appear);
+                    found_seq_skip = seq.len();
+                    table.push(Sequence::new(seq.to_vec(), this_seq_appear));
                 }
             }
         }
         if table.len() > 1 {
-            // println!("table len {}", &table.len());
             let table_string = serde_json::to_string_pretty(&table).unwrap();
             fileops(&program_name.to_string().replace(".so", ""), table_string)?;
             info!("file saved {}", &program_name.to_string());
@@ -118,12 +135,11 @@ fn read_files(path: &str) -> Result<HashMap<String, Vec<u8>>> {
             let mut contents = vec![];
 
             file.read_to_end(&mut contents)?;
-            println!("{}", &file_name);
-            println!("Size before trimming 0s {}", &contents.len());
+            info!("Size before trimming 0s {}; file {}", &contents.len(), &file_name);
             while contents.ends_with(b"\0") {
                 contents.pop();
             }
-            println!("Size after trimming 0s {}", &contents.len());
+            info!("Size after trimming 0s {}", &contents.len());
             file_contents.insert(file_name, contents);
         }
     }
