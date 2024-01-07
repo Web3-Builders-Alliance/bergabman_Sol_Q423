@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Utc;
 use kmp::{kmp_find_with_lsp_table, kmp_table};
 use rayon::prelude::*;
 use std::{
@@ -8,7 +9,6 @@ use std::{
 };
 use tracing::info;
 use tracing_subscriber;
-use chrono::Utc;
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -29,7 +29,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
     let start = std::time::Instant::now();
     let mut adjust = std::time::Instant::now();
     let mut file_count = 0;
-    
+
     for (program_name, program_data) in progs.iter() {
         file_count += 1;
         info!(
@@ -44,16 +44,22 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                 let now = std::time::Instant::now();
                 if now.duration_since(adjust).as_secs() > 60 {
                     adjust = std::time::Instant::now();
-                    info!("count: {}; runt {}s; table len {} ", count, now.duration_since(start).as_secs(), &table.len());
+                    info!(
+                        "count: {}; runt {}s; table len {} ",
+                        count,
+                        now.duration_since(start).as_secs(),
+                        &table.len()
+                    );
                 }
 
                 if String::from_utf8(seq.to_vec()).is_ok() {
                     let seq_string = String::from_utf8(seq.to_vec()).unwrap();
                     let kmp_table = kmp_table(seq);
                     // let table_appearances: Vec<Option<_>> = table
-                    let table_appearances = table.par_iter().find_map_any(|(table_string, _, _)| {
-                        kmp_find_with_lsp_table(seq, table_string.as_bytes(), &kmp_table)
-                    });
+                    let table_appearances =
+                        table.par_iter().find_map_any(|(table_string, _, _)| {
+                            kmp_find_with_lsp_table(seq, table_string.as_bytes(), &kmp_table)
+                        });
 
                     // .map(|(seq_string, _, _)| {
                     //     kmp_find_with_lsp_table(seq, seq_string.as_bytes(), &kmp_table)
@@ -144,7 +150,11 @@ fn read_files(path: &str) -> Result<HashMap<String, Vec<u8>>> {
 
 fn fileops(filename: &str, input_string: String) -> Result<()> {
     let time = Utc::now();
-    File::create(format!("{}_{}.json", time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),filename))
-        .and_then(|mut file| file.write_all(&input_string.as_bytes()))?;
+    File::create(format!(
+        "{}_{}.json",
+        time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        filename
+    ))
+    .and_then(|mut file| file.write_all(&input_string.as_bytes()))?;
     Ok(())
 }
