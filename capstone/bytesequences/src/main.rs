@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use base64::{engine::general_purpose::STANDARD_NO_PAD as b64, Engine as _};
 use chrono::Utc;
 use kmp::{kmp_find_with_lsp_table, kmp_table};
@@ -114,8 +114,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
             }
         }
         if table.len() > 1 {
-            let table_string = serde_json::to_string_pretty(&table)?;
-            fileops(&program_name.to_string().replace(".so", ""), table_string)?;
+            fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string_pretty(&table)?)?;
             info!("file saved {}", &program_name.to_string());
         }
     }
@@ -130,7 +129,7 @@ fn read_files(path: &str) -> Result<HashMap<String, Vec<u8>>> {
 
     while let Some(Ok(entry)) = files.next() {
         if entry.file_type()?.is_file() {
-            let file_name: String = entry.file_name().to_str().unwrap().into(); //.into();
+            let file_name = entry.file_name().to_str().ok_or(anyhow!("filename"))?.into(); 
             let mut file = File::open(entry.path())?;
             let mut contents = vec![];
 
