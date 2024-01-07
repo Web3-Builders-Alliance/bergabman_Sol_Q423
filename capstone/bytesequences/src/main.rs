@@ -75,9 +75,8 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
                     found_seq_skip -= 1;
                     continue 'window;
                 }
-                let mut this_seq_appear = 1;
                 let now = std::time::Instant::now();
-                if now.duration_since(adjust).as_secs() > 120 {
+                if now.duration_since(adjust).as_secs() > 180 {
                     adjust = std::time::Instant::now();
                     info!(
                         "seq_len: {}; runt {}s; table_len {} ",
@@ -101,7 +100,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
                     .map(|(_, program_data)| kmp_find_with_lsp_table(seq, program_data, &kmp_table))
                     .collect();
 
-                this_seq_appear = appearances
+                let this_seq_appear = appearances
                     .par_iter()
                     .map(|seen| if seen.is_some() { 1 } else { 0 })
                     .sum();
