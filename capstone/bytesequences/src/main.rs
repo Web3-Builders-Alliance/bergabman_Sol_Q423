@@ -25,6 +25,7 @@ fn main() -> Result<()> {
 
 fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, String, String)>> {
     // sliding window analysis of byte sequences in all files
+
     let mut table: Vec<(String, String, String)> = vec![];
     let start = std::time::Instant::now();
     let mut adjust = std::time::Instant::now();
@@ -45,7 +46,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                 if now.duration_since(adjust).as_secs() > 60 {
                     adjust = std::time::Instant::now();
                     info!(
-                        "count: {}; runt {}s; table len {} ",
+                        "seq_len: {}; runt {}s; table_len {} ",
                         count,
                         now.duration_since(start).as_secs(),
                         &table.len()
@@ -61,28 +62,10 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                             kmp_find_with_lsp_table(seq, table_string.as_bytes(), &kmp_table)
                         });
 
-                    // .map(|(seq_string, _, _)| {
-                    //     kmp_find_with_lsp_table(seq, seq_string.as_bytes(), &kmp_table)
-                    // })
-                    // .filter(|seq| seq.is_some())
-                    // .collect();
-                    // if table_appearances.len() > 0 {
                     if table_appearances.is_some() {
                         continue 'window;
                     }
-                    // for item in table_appearances.iter(){
-                    //     if item.is_some() {
-                    //         continue 'window;
-                    //     }
-                    // }
-                    // for (table_item, _, _) in table.iter() {
-                    //     if table_item.contains(&seq_string) {
-                    //         continue 'window;
-                    //     }
-                    // }
-                    // let appearances = progs.par_iter().find_map(|(_, program_data)| {
-                    //     kmp_find_with_lsp_table(seq, program_data, &kmp_table)
-                    // });
+
                     let appearances: Vec<Option<usize>> = progs
                         .par_iter()
                         .map(|(_, program_data)| {
@@ -100,12 +83,12 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                         let this_item = (
                             seq_string.clone(),
                             format!(
-                                "appeared {} times in {} files ({}%)",
+                                "appeared {} from {} files ({}%)",
                                 this_seq.1,
                                 progs.len(),
                                 prct
                             ),
-                            format!("len {} bytes", seq.len()),
+                            format!("length {} bytes", seq.len()),
                         );
                         table.push(this_item);
                     }
@@ -115,7 +98,7 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
         if table.len() > 1 {
             // println!("table len {}", &table.len());
             let table_string = serde_json::to_string_pretty(&table).unwrap();
-            fileops(&program_name.to_string(), table_string)?;
+            fileops(&program_name.to_string().replace(".so", ""), table_string)?;
             info!("file saved {}", &program_name.to_string());
         }
     }
