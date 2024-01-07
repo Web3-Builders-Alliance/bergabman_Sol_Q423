@@ -110,11 +110,12 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<Sequence>> {
                     info!("seq_appeared: {} times", this_seq_appear);
                     found_seq_skip = seq.len();
                     table.push(Sequence::new(seq.to_vec(), this_seq_appear));
+                    fileops(&program_name.to_string().replace(".so", ""), serde_json::to_string_pretty(&table)?)?;
                 }
             }
         }
         if table.len() > 1 {
-            let table_string = serde_json::to_string_pretty(&table).unwrap();
+            let table_string = serde_json::to_string_pretty(&table)?;
             fileops(&program_name.to_string().replace(".so", ""), table_string)?;
             info!("file saved {}", &program_name.to_string());
         }
