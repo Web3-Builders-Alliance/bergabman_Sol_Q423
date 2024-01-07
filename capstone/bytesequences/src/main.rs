@@ -6,12 +6,16 @@ use std::{
     fs::File,
     io::{Read, Write},
 };
+// use tracing::info;
+// use tracing_subscriber;
 
 fn main() -> Result<()> {
+    // tracing_subscriber::fmt::init();
+
     let progs = read_files("./programs_downloaded")?;
+    rayon::ThreadPoolBuilder::new().num_threads(12).build_global().unwrap();
     println!("analysis");
     let analysis = analyse_seqences(progs)?;
-    println!("writing");
     let json_string = serde_json::to_string(&analysis).unwrap();
     let _ = fileops("full_analysis.json", json_string);
 
@@ -22,20 +26,44 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
     // sliding window analysis of byte sequences in all files
     let mut table: Vec<(String, String, String)> = vec![];
     let start = std::time::Instant::now();
-    for (_program_name, program_data) in progs.iter() {
+    let mut adjust = std::time::Instant::now();
+    let mut file_count = 0;
+    for (program_name, program_data) in progs.iter() {
+        file_count += 1;
+        println!(
+            "Starting {}, file count {} from {}",
+            &program_name,
+            file_count,
+            progs.len()
+        );
         // let mut byte_sequences: HashMap<String, u32> = HashMap::new();
-        for count in (32..250).rev() {
-            for seq in program_data.windows(count) {
+        for count in (32..8192).rev() {
+            'window: for seq in program_data.windows(count) {
                 let mut this_seq = (seq, 1);
 
                 if String::from_utf8(seq.to_vec()).is_ok() {
                     let seq_string = String::from_utf8(seq.to_vec()).unwrap();
-                    for (table_item, _, _) in &table {
-                        if table_item.contains(&seq_string) {
-                            continue;
-                        }
-                    }
                     let kmp_table = kmp_table(seq);
+                    let table_appearances: Vec<Option<_>> = table
+                        .par_iter()
+                        .map(|(seq_string, _, _)| {
+                            kmp_find_with_lsp_table(seq, seq_string.as_bytes(), &kmp_table)
+                        })
+                        .filter(|seq| seq.is_some())
+                        .collect();
+                    if table_appearances.len() > 0 {
+                        continue 'window
+                    }
+                    // for item in table_appearances.iter(){
+                    //     if item.is_some() {
+                    //         continue 'window;
+                    //     }
+                    // }
+                    // for (table_item, _, _) in table.iter() {
+                    //     if table_item.contains(&seq_string) {
+                    //         continue 'window;
+                    //     }
+                    // }
                     let appearances: Vec<Option<usize>> = progs
                         .par_iter()
                         .map(|(_, program_data)| {
@@ -49,24 +77,34 @@ fn analyse_seqences(progs: HashMap<String, Vec<u8>>) -> Result<Vec<(String, Stri
                     }
 
                     if this_seq.1 as f64 > (progs.len() as f64 * 0.7) {
+                        let prct = this_seq.1 as f64 / (progs.len() as f64 / 100f64);
                         let this_item = (
                             seq_string.clone(),
-                            format!("{} appearances", this_seq.1),
-                            format!("{} len", seq.len()),
+                            format!(
+                                "appeared {} times in {} files ({}%)",
+                                this_seq.1,
+                                progs.len(),
+                                prct
+                            ),
+                            format!("len {} bytes", seq.len()),
                         );
                         table.push(this_item);
                     }
                 }
             }
-            println!("\ncount: {}", count);
             let now = std::time::Instant::now();
-            println!("runtime {}s", now.duration_since(start).as_secs());
-            if table.len() > 1 {
-                println!("table len {}", &table.len());
-                let table_string = serde_json::to_string_pretty(&table).unwrap();
-                println!("{}", &table_string);
-                fileops(&count.to_string(), table_string)?;
+            if now.duration_since(adjust).as_secs() > 30 {
+                adjust = std::time::Instant::now();
+                print!("count: {}; ", count);
+                print!("runt {}s; ", now.duration_since(start).as_secs());
+                print!("table len {}", &table.len());
             }
+        }
+        if table.len() > 1 {
+            println!("table len {}", &table.len());
+            let table_string = serde_json::to_string_pretty(&table).unwrap();
+            println!("{}", &table_string);
+            fileops(&program_name.to_string(), table_string)?;
         }
     }
 
