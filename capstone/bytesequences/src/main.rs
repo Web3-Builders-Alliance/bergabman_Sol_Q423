@@ -17,10 +17,6 @@ fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let progs = read_files("./programs_downloaded")?;
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(16)
-        .build_global()
-        .unwrap();
     info!("analysis");
     let analysis = analyse_seqences(progs)?;
     let json_string = serde_json::to_string(&analysis).unwrap();
