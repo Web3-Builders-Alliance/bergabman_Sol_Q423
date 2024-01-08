@@ -110,9 +110,9 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                     );
                 }
 
+                let bmb = BMByte::from(seq.to_vec()).unwrap();
                 // let _kmp_table = kmp_table(seq);
                 let table_appearances = table.0.par_iter().find_map_any(|sequence| {
-                    let bmb = BMByte::from(seq.to_vec()).unwrap();
                     bmb.find_first_in(&sequence.seq)
                     // kmp_find_with_lsp_table(seq, &sequence.seq, &kmp_table)
                 });
@@ -124,7 +124,7 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                 let appearances: Vec<Option<usize>> = progs
                     .par_iter()
                     .map(|program_data| {
-                        let bmb = BMByte::from(seq.to_vec()).unwrap();
+                        // let bmb = BMByte::from(seq.to_vec()).unwrap();
                         bmb.find_first_in(&program_data)
                         // kmp_find_with_lsp_table(seq, program_data, &kmp_table)
                     })
