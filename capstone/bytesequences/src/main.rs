@@ -26,7 +26,6 @@ fn main() -> Result<()> {
 }
 
 #[derive(Serialize, Deserialize)]
-
 struct Table(Vec<Sequence>);
 
 impl Table {
