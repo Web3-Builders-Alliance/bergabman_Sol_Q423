@@ -81,7 +81,7 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
     // let mut table: Vec<(String, String, String)> = vec![];
     // let mut table: Vec<Sequence> = vec![];
     progs.sort_by(|a, b| b.len().cmp(&a.len()));
-  
+
     let mut table: Table = Table::new();
     let start = std::time::Instant::now();
     let mut adjust = std::time::Instant::now();
@@ -111,9 +111,21 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                 }
 
                 let bmb = BMByte::from(seq.to_vec()).unwrap();
+                let l70 = seq.len() as f64 * 0.7f64;
+                let l70_bmb = BMByte::from(seq[..l70 as usize].to_vec()).unwrap();
+                let r70_bmb = BMByte::from(seq[seq.len() - l70 as usize..].to_vec()).unwrap();
                 // let _kmp_table = kmp_table(seq);
                 let table_appearances = table.0.par_iter().find_map_any(|sequence| {
-                    bmb.find_first_in(&sequence.seq)
+                    if let Some(found) = bmb.find_first_in(&sequence.seq) {
+                        Some(found)
+                    } else if let Some(found) = l70_bmb.find_first_in(&sequence.seq) {
+                        Some(found)
+                    } else if let Some(found) = r70_bmb.find_first_in(&sequence.seq) {
+                        Some(found)
+                    } else {
+                        None
+                    }
+
                     // kmp_find_with_lsp_table(seq, &sequence.seq, &kmp_table)
                 });
 
@@ -138,8 +150,9 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                 if this_seq_appear as f64 > min_prcnt {
                     let this_seq = Sequence::new(seq.to_vec(), this_seq_appear);
                     info!(
-                        "{}\nappeared: {} times",
-                        this_seq.seq_str_lossy, this_seq.appear
+                        "{} | appeared: {} times",
+                        String::from_utf8_lossy(seq).to_string(),
+                        this_seq.appear
                     );
                     found_seq_skip = seq.len();
                     table.0.push(this_seq);
