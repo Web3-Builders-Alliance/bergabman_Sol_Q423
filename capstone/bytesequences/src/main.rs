@@ -2,9 +2,11 @@ use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD_NO_PAD as b64, Engine as _};
 use chrono::Utc;
 // use kmp::{kmp_find_with_lsp_table, kmp_table};
+use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     fs::File,
     io::{Read, Write},
 };
@@ -12,6 +14,9 @@ use tracing::info;
 use tracing_subscriber;
 
 use boyer_moore_magiclen::BMByte;
+
+// new idea
+// offsets for 00000000000
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -80,13 +85,14 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
 
     // let mut table: Vec<(String, String, String)> = vec![];
     // let mut table: Vec<Sequence> = vec![];
-    progs.sort_by(|a, b| b.len().cmp(&a.len()));
+    // progs.sort_by(|a, b| b.len().cmp(&a.len()));
 
     let mut table: Table = Table::new();
     let start = std::time::Instant::now();
     let mut adjust = std::time::Instant::now();
     let mut file_count = 0;
     let min_prcnt = (progs.len() as f64 / 100f64) * 70f64;
+    let mut seq_counter = 0;
 
     for program_data in progs.iter() {
         file_count += 1;
@@ -99,28 +105,35 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                     found_seq_skip -= 1;
                     continue 'window;
                 }
+                seq_counter += 1;
                 let now = std::time::Instant::now();
                 if now.duration_since(adjust).as_secs() > 180 {
                     adjust = std::time::Instant::now();
                     info!(
-                        "seq_len: {}; runt {}s; table_len {} ",
+                        "seq_len: {}; runt {}s; table_len: {}; seq_count: {}",
                         count,
                         now.duration_since(start).as_secs(),
-                        &table.0.len()
+                        &table.0.len(),
+                        seq_counter.to_formatted_string(&Locale::en)
                     );
                 }
 
                 let bmb = BMByte::from(seq.to_vec()).unwrap();
                 let l70 = seq.len() as f64 * 0.7f64;
-                let l70_bmb = BMByte::from(seq[..l70 as usize].to_vec()).unwrap();
-                let r70_bmb = BMByte::from(seq[seq.len() - l70 as usize..].to_vec()).unwrap();
+                // let l70_bmb = BMByte::from(seq[..l70 as usize].to_vec()).unwrap();
+                // let r70_bmb = BMByte::from(seq[seq.len() - l70 as usize..].to_vec()).unwrap();
                 // let _kmp_table = kmp_table(seq);
                 let table_appearances = table.0.par_iter().find_map_any(|sequence| {
-                    if let Some(found) = bmb.find_first_in(&sequence.seq) {
+                    // if let Some(found) = bmb.find_first_in(&sequence.seq) {
+                    if let Some(found) = par_find_seq(seq, &sequence.seq) {
                         Some(found)
-                    } else if let Some(found) = l70_bmb.find_first_in(&sequence.seq) {
+                    // } else if let Some(found) = l70_bmb.find_first_in(&sequence.seq) {
+                    } else if let Some(found) = par_find_seq(&seq[..l70 as usize], &sequence.seq) {
                         Some(found)
-                    } else if let Some(found) = r70_bmb.find_first_in(&sequence.seq) {
+                    // } else if let Some(found) = r70_bmb.find_first_in(&sequence.seq) {
+                    } else if let Some(found) =
+                        par_find_seq(&seq[&seq.len() - l70 as usize..], &sequence.seq)
+                    {
                         Some(found)
                     } else {
                         None
@@ -137,7 +150,8 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                     .par_iter()
                     .map(|program_data| {
                         // let bmb = BMByte::from(seq.to_vec()).unwrap();
-                        bmb.find_first_in(&program_data)
+                        // bmb.find_first_in(&program_data)
+                        par_find_seq(&seq, &program_data)
                         // kmp_find_with_lsp_table(seq, program_data, &kmp_table)
                     })
                     .collect();
@@ -212,4 +226,11 @@ fn fileops(filename: &str, input_string: String) -> Result<()> {
     ))
     .and_then(|mut file| file.write_all(&input_string.as_bytes()))?;
     Ok(())
+}
+
+fn par_find_seq(needle: &[u8], haystack: &[u8]) -> Option<usize> {
+    haystack
+        .par_windows(needle.len())
+        .find_any(|&seq| seq == needle)
+        .map(|_| 1usize)
 }
