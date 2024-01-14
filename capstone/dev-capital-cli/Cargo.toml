@@ -1,0 +1,13 @@
+[package]
+name = "dev-capital-cli"
+version = "0.1.0"
+edition = "2021"
+author = "bergabman"
+
+[dependencies]
+clap = { version = "^4.4.16", features = ["derive"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+anyhow = "^1.0.79"
+tokio = { version = "^1.35.1", features = ["full"] }
+solana-sdk = "^1.17.16"

@@ -1,19 +1,19 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD_NO_PAD as b64, Engine as _};
 use chrono::Utc;
-// use kmp::{kmp_find_with_lsp_table, kmp_table};
+use kmp::{kmp_find_with_lsp_table, kmp_table};
 use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     fs::File,
     io::{Read, Write},
 };
 use tracing::info;
 use tracing_subscriber;
 
-use boyer_moore_magiclen::BMByte;
+// use boyer_moore_magiclen::BMByte;
 
 // new idea
 // offsets for 00000000000
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
 
     let progs = read_files("./programs_downloaded")?;
     info!("analysis");
-    let analysis = analyse_seqences(progs)?;
+    let analysis = analyse_zero_seqences(progs)?;
     let json_string = serde_json::to_string(&analysis).unwrap();
     fileops("full_analysis.json", json_string)?;
 
@@ -97,7 +97,8 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
     for program_data in progs.iter() {
         file_count += 1;
         info!("Starting {} from {}", file_count, progs.len());
-        for count in (64..1024).rev() {
+        for count in (4..=12).rev() {
+            // let zeros = [count;0];
             let mut found_seq_skip = 0;
             'window: for seq in program_data.windows(count) {
                 if found_seq_skip > 0 {
@@ -118,7 +119,7 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
                     );
                 }
 
-                let bmb = BMByte::from(seq.to_vec()).unwrap();
+                // let bmb = BMByte::from(seq.to_vec()).unwrap();
                 let l70 = seq.len() as f64 * 0.7f64;
                 // let l70_bmb = BMByte::from(seq[..l70 as usize].to_vec()).unwrap();
                 // let r70_bmb = BMByte::from(seq[seq.len() - l70 as usize..].to_vec()).unwrap();
@@ -184,7 +185,41 @@ fn analyse_seqences(mut progs: Vec<Vec<u8>>) -> Result<Table> {
     Ok(table)
 }
 
-fn read_files(path: &str) -> Result<Vec<Vec<u8>>> {
+fn analyse_zero_seqences(progs: Vec<(String, Vec<u8>)>) -> Result<()> {
+    // check consecutive 0byte sequences in all programs,
+    // and calculate what would be the size saving if we would replace for examply 6 consecutive 0s that's 6 bytes
+    // with a u32 offset in an array of offsets, appended to the program data
+    let mut file_count = 0;
+    let zeros: Vec<u8> = vec![0; 10];
+
+    for (file_name, programd) in progs.iter() {
+        file_count += 1;
+        info!("Starting {} from {}", file_count, progs.len());
+        for count in (5..=zeros.len()).rev() {
+            let this_seq_appear = find_seq_all(&zeros[0..count], &programd).unwrap();
+
+            let saved = (count - 3) * this_seq_appear;
+            let prct_from_program =
+                (count * this_seq_appear) as f64 / (programd.len() as f64 / 100f64);
+            let prct = saved as f64 / (programd.len() as f64 / 100f64);
+            info!(
+                "{} size {} bytes| consecutive {} \"0\"s appeared: {} times {}bytes({}%) | u24(lol) OT would save {}bytes({}%)",
+                file_name,
+                &programd.len(),
+                count,
+                this_seq_appear,
+                count*this_seq_appear,
+                prct_from_program as usize,
+                saved,
+                prct,
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn read_files(path: &str) -> Result<Vec<(String, Vec<u8>)>> {
     let mut files = std::fs::read_dir(path)?;
 
     let mut file_contents = vec![];
@@ -210,7 +245,7 @@ fn read_files(path: &str) -> Result<Vec<Vec<u8>>> {
             }
             info!("Size after trimming 0s {}", &contents.len());
             // file_contents.insert(file_name, contents);
-            file_contents.push(contents);
+            file_contents.push((file_name, contents));
         }
     }
 
@@ -233,4 +268,27 @@ fn par_find_seq(needle: &[u8], haystack: &[u8]) -> Option<usize> {
         .par_windows(needle.len())
         .find_any(|&seq| seq == needle)
         .map(|_| 1usize)
+}
+
+fn find_seq_all(needle: &[u8], haystack: &[u8]) -> Option<usize> {
+    // let mut windows_hashmap: HashMap<usize, &[u8]> = haystack
+    //     .par_windows(needle.len())
+    //     .enumerate()
+    //     .filter(|(_, bytes)| bytes == &needle)
+    //     // .map(|(index, bytes)| (index, bytes.to_vec()))
+    //     .collect();
+
+    let mut skip_counter = 0;
+    let mut found_counter = 0;
+    for sub_seq in haystack.windows(needle.len()) {
+        if skip_counter > 0 {
+            skip_counter -= 1;
+            continue;
+        }
+        if needle == sub_seq {
+            found_counter += 1;
+            skip_counter += needle.len()
+        }
+    }
+    Some(found_counter)
 }
