@@ -20,7 +20,7 @@ pub mod dev_capital {
         // initializes funding for specific dev pubkey, with amount in lamports
         // tx for deployment will only be accepted if signed by dev key set in init step
 
-        ctx.accounts.init_dev_fund(ctx.bumps.dev_fund, lamports);
+        ctx.accounts.init_dev_fund(ctx.bumps.dev_fund, lamports)?;
         Ok(())
     }
     pub fn init_dev_deploy(
@@ -31,8 +31,13 @@ pub mod dev_capital {
     ) -> Result<()> {
         // initializes deploy pda and data account
 
-        ctx.accounts
-            .init_dev_deploy(ctx.bumps.dev_deploy, ot_6_len, ot_5_len, orig_len);
+        ctx.accounts.init_dev_deploy(
+            ctx.program_id,
+            ctx.bumps.dev_deploy,
+            ot_6_len,
+            ot_5_len,
+            orig_len,
+        )?;
 
         Ok(())
     }

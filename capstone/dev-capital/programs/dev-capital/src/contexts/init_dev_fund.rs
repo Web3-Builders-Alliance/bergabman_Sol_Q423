@@ -1,4 +1,7 @@
-use anchor_lang::{prelude::*, system_program::{Transfer, transfer}};
+use anchor_lang::{
+    prelude::*,
+    system_program::{transfer, Transfer},
+};
 
 use crate::state::dev_fund::DevFund;
 
@@ -23,7 +26,6 @@ impl<'info> InitDevFund<'info> {
         self.dev_fund
             .init(self.funder.key(), self.dev.key(), bump)?;
 
-        
         let cpi_accounts = Transfer {
             from: self.funder.to_account_info(),
             to: self.dev_fund.to_account_info(),

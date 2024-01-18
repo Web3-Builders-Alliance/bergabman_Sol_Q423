@@ -22,7 +22,10 @@ async fn main() -> Result<()> {
     debug!("debug mode enabled");
     debug!("{:?}", dev_cli);
 
-    let compressed = open_file(&dev_cli.program_path.unwrap()).and_then(|program_data| compress_file_5x0(program_data))?;
+    let maybe_disc = hash(b"account:DevDeployData").as_ref()[..8].to_vec();
+    debug!("{:?}", &maybe_disc);
+
+    // let compressed = open_file(&dev_cli.program_path.unwrap()).and_then(|program_data| compress_file_5x0(program_data))?;
 
 
     debug!("program finished");
