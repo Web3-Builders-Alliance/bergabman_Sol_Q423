@@ -101,7 +101,7 @@ describe("dev-capital", () => {
     // Add your test here.
 
     try {
-      const tx = await program.methods.initDevDeploy(60000*1, 60000*1, 286176*1,).accounts({
+      const tx = await program.methods.initDevDeploy(50000*1, 50000*1, 286176*1,).accounts({
         // funder: funder.publicKey,
         dev: dev.publicKey,
         devFund: dev_fund,
@@ -133,7 +133,7 @@ describe("dev-capital", () => {
       devFund: dev_fund,
       devDeploy: dev_deploy,
       devDeployOffsets: dev_deploy_offsets,
-      systemProgram: SystemProgram.programId,
+      // systemProgram: SystemProgram.programId,
     }).instruction();
     const instr_data = await program.methods.accountSizeData().accounts({
       // funder: funder.publicKey,
@@ -141,16 +141,16 @@ describe("dev-capital", () => {
       devFund: dev_fund,
       devDeploy: dev_deploy,
       devDeployData: dev_deploy_data,
-      systemProgram: SystemProgram.programId,
+      // systemProgram: SystemProgram.programId,
     }).instruction();
 
     let dataCount = 0;
-    while ((dataCount*10240)<dataOrigLen*1.5) {
+    while ((dataCount*10240)<dataOrigLen*1) {
       dataCount+=1;
       transaction.add(instr_data)
     }
     let increaseCount = 0;
-    while ((increaseCount*10240)<offsets_len+8) {
+    while ((increaseCount*10240)<(offsets_len*2)+8) {
       increaseCount+=1;
       transaction.add(instr_offsets)
     }
