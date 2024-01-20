@@ -4,5 +4,8 @@ pub use dev_fund::*;
 pub mod dev_deploy;
 pub use dev_deploy::*;
 
-// pub mod dev_deploy_data;
-// pub use dev_deploy_data::*;
+pub mod dev_deploy_offsets;
+pub use dev_deploy_offsets::*;
+
+pub mod dev_deploy_data;
+pub use dev_deploy_data::*;

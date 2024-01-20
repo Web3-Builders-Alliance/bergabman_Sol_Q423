@@ -53,12 +53,14 @@ describe("dev-capital", () => {
 
   const dev_deploy_offsets = PublicKey.findProgramAddressSync([
     Buffer.from("dev_deploy_offsets"),
-    dev_deploy.toBuffer(),
+    dev_fund.toBuffer(),
+    dev.publicKey.toBuffer()
   ],
   program.programId)[0];
   const dev_deploy_data = PublicKey.findProgramAddressSync([
     Buffer.from("dev_deploy_data"),
-    dev_deploy.toBuffer(),
+    dev_fund.toBuffer(),
+    dev.publicKey.toBuffer()
   ],
   program.programId)[0];
 
@@ -68,35 +70,24 @@ describe("dev-capital", () => {
       .then(confirm).then(log),
       await connection.requestAirdrop(dev.publicKey, LAMPORTS_PER_SOL * 50)
       .then(confirm),
+      await connection.requestAirdrop(provider.publicKey, LAMPORTS_PER_SOL * 50)
+      .then(confirm).then(log),
       // bergNvF6e4qZ9dJDYHBBhC9r644Mg5S2rB7PdDC3USH
     ])
   })
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    try {
-      const tx = await program.methods.initialize().rpc();
-      console.log("Your transaction signature", tx);
-    } catch (error) {
-      console.log(error);
-      error.logs.forEach(element => {
-        console.log(element);
-      });
-    }
-    
-  });
 
   it("Initialized dev fund!", async () => {
     // Add your test here.
 
     try {
-      const tx = await program.methods.initDevFund(new BN(LAMPORTS_PER_SOL * 9)).accounts({
+      const tx = await program.methods.initDevFund(new BN(LAMPORTS_PER_SOL * 20)).accounts({
         funder: funder.publicKey,
         dev: dev.publicKey,
         devFund: dev_fund,
         systemProgram: SystemProgram.programId,
       }).signers([funder]).rpc();
-      console.log("Your transaction signature", tx);
+      log(tx);
     } catch (error) {
       console.log(error);
       error.logs.forEach(element => {
@@ -110,7 +101,7 @@ describe("dev-capital", () => {
     // Add your test here.
 
     try {
-      const tx = await program.methods.initDevDeploy(42000*1, 42000*1, 42000*1,).accounts({
+      const tx = await program.methods.initDevDeploy(60000*1, 60000*1, 286176*1,).accounts({
         // funder: funder.publicKey,
         dev: dev.publicKey,
         devFund: dev_fund,
@@ -119,7 +110,83 @@ describe("dev-capital", () => {
         devDeployData: dev_deploy_data,
         systemProgram: SystemProgram.programId,
       }).signers([dev]).rpc();
-      console.log("Your transaction signature", tx);
+      log(tx);
+    } catch (error) {
+      console.log(error);
+      error.logs.forEach(element => {
+        console.log(element);
+      });
+    }
+    
+  });
+
+  it("Accounts sized!", async () => {
+    // Add your test here.
+    const devDeployFetched = await program.account.devDeploy.fetch(dev_deploy);
+    const dataOrigLen = devDeployFetched.dataOrigLen;
+    const offsets_len = devDeployFetched.ot5Len + devDeployFetched.ot6Len;
+    console.log(devDeployFetched);
+    const transaction = new Transaction();
+    const instr_offsets = await program.methods.accountSizeOffsets().accounts({
+      // funder: funder.publicKey,
+      dev: dev.publicKey,
+      devFund: dev_fund,
+      devDeploy: dev_deploy,
+      devDeployOffsets: dev_deploy_offsets,
+      systemProgram: SystemProgram.programId,
+    }).instruction();
+    const instr_data = await program.methods.accountSizeData().accounts({
+      // funder: funder.publicKey,
+      dev: dev.publicKey,
+      devFund: dev_fund,
+      devDeploy: dev_deploy,
+      devDeployData: dev_deploy_data,
+      systemProgram: SystemProgram.programId,
+    }).instruction();
+
+    let dataCount = 0;
+    while ((dataCount*10240)<dataOrigLen*1.5) {
+      dataCount+=1;
+      transaction.add(instr_data)
+    }
+    let increaseCount = 0;
+    while ((increaseCount*10240)<offsets_len+8) {
+      increaseCount+=1;
+      transaction.add(instr_offsets)
+    }
+    // const transaction_copy = transaction;
+    // transaction_copy.feePayer = new PublicKey(0)
+    // transaction_copy.recentBlockhash = new PublicKey(0).toBase58()
+    // transaction_copy.sign(dev);
+
+    // const serialized = transaction_copy.serialize({
+    //   verifySignatures: false,
+    //   requireAllSignatures: false,
+    // })
+    // const tx_size = serialized.length + 1 + (transaction.signatures.length * 64);
+    // console.log(tx_size);
+    // const increaseCount = dataOrigLen/10240;
+
+    try {
+
+      const signature = await anchor.web3.sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [dev],
+      );
+      log(signature);
+      // console.log('SIGNATURE', signature);
+
+      // const tx = await program.methods.accountSize().accounts({
+      //   // funder: funder.publicKey,
+      //   dev: dev.publicKey,
+      //   devFund: dev_fund,
+      //   devDeploy: dev_deploy,
+      //   devDeployOffsets: dev_deploy_offsets,
+      //   devDeployData: dev_deploy_data,
+      //   systemProgram: SystemProgram.programId,
+      // }).signers([dev])/*.rpc()*/;
+      // log(tx);
     } catch (error) {
       console.log(error);
       error.logs.forEach(element => {
@@ -129,3 +196,5 @@ describe("dev-capital", () => {
     
   });
 });
+
+

@@ -2,6 +2,8 @@ use std::ops::{Add, Div, Mul, Rem};
 
 use anchor_lang::prelude::*;
 
+use crate::InitDevDeployBumps;
+
 #[account]
 pub struct DevDeploy {
     pub ot_6_len: u32,   // OffsetTable
@@ -13,19 +15,21 @@ pub struct DevDeploy {
     pub dev_fund: Pubkey,
     pub dev_deploy_offsets: Pubkey,
     pub dev_deploy_data: Pubkey,
-    pub bump: u8,
+    pub dev_deploy_bump: u8,
+    pub dev_deploy_offsets_bump: u8,
+    pub dev_deploy_data_bump: u8,
 }
 
 impl DevDeploy {
     // pub const LEN: usize = 8 + std::mem::size_of::<DevDeploy>();
-    pub const INIT_LEN: usize = 8 + 4 + 4 + 4 + 4 + 4 + 32 + 32 + 32 + 32 + 1;
+    pub const INIT_LEN: usize = 8 + 4 + 4 + 4 + 4 + 4 + 32 + 32 + 32 + 32 + 1 + 1 + 1;
 
     pub fn init(
         &mut self,
         ot_6_len: u32,
         ot_5_len: u32,
         data_orig_len: u32,
-        bump: u8,
+        bumps: InitDevDeployBumps,
     ) -> Result<()> {
         self.ot_6_len = ot_6_len;
         self.ot_6_index = 0;
@@ -36,7 +40,9 @@ impl DevDeploy {
         self.dev_fund = self.dev_fund.key();
         self.dev_deploy_offsets = self.dev_deploy_offsets.key();
         self.dev_deploy_data = self.dev_deploy_data.key();
-        self.bump = bump;
+        self.dev_deploy_bump = bumps.dev_deploy;
+        self.dev_deploy_offsets_bump = bumps.dev_deploy_offsets;
+        self.dev_deploy_data_bump = bumps.dev_deploy_data;
         Ok(())
     }
     // pub fn account_setup

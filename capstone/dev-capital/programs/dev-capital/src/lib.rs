@@ -13,9 +13,6 @@ pub mod dev_capital {
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        Ok(())
-    }
     pub fn init_dev_fund(ctx: Context<InitDevFund>, lamports: u64) -> Result<()> {
         // initializes funding for specific dev pubkey, with amount in lamports
         // tx for deployment will only be accepted if signed by dev key set in init step
@@ -30,21 +27,25 @@ pub mod dev_capital {
         orig_len: u32,
     ) -> Result<()> {
         // initializes deploy pda and data account
+        // load dynamic sized accounts data
+        // let offsets = ctx.accounts.dev_deploy_offsets.acc;
 
-        ctx.accounts.init_dev_deploy(
-            ctx.program_id,
-            ctx.bumps.dev_deploy,
-            ot_6_len,
-            ot_5_len,
-            orig_len,
-        )?;
+        ctx.accounts
+            .init_dev_deploy(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, orig_len)?;
 
+        Ok(())
+    }
+
+    pub fn account_size_offsets(ctx: Context<AccountSizeOffsets>) -> Result<()> {
+        ctx.accounts.size_increase()?;
+        Ok(())
+    }
+    
+    pub fn account_size_data(ctx: Context<AccountSizeData>) -> Result<()> {
+        ctx.accounts.size_increase()?;
         Ok(())
     }
     // pub fn dev_deploy(ctx: Context<DevDeploy>) -> Result<()> {
     //     Ok(())
     // }
 }
-
-#[derive(Accounts)]
-pub struct Initialize {}
