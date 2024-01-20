@@ -3,9 +3,6 @@ import { BN, Program } from "@coral-xyz/anchor";
 import { DevCapital } from "../target/types/dev_capital";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 
-
-
-
 describe("dev-capital", () => {
 
   // Configure the client to use the local cluster.
@@ -78,7 +75,6 @@ describe("dev-capital", () => {
 
 
   it("Initialized dev fund!", async () => {
-    // Add your test here.
 
     try {
       const tx = await program.methods.initDevFund(new BN(LAMPORTS_PER_SOL * 20)).accounts({
@@ -98,11 +94,9 @@ describe("dev-capital", () => {
   });
 
   it("Initialized dev deploy!", async () => {
-    // Add your test here.
 
     try {
       const tx = await program.methods.initDevDeploy(50000*1, 50000*1, 286176*1,).accounts({
-        // funder: funder.publicKey,
         dev: dev.publicKey,
         devFund: dev_fund,
         devDeploy: dev_deploy,
@@ -127,21 +121,19 @@ describe("dev-capital", () => {
     const offsets_len = devDeployFetched.ot5Len + devDeployFetched.ot6Len;
     console.log(devDeployFetched);
     const transaction = new Transaction();
+
     const instr_offsets = await program.methods.accountSizeOffsets().accounts({
-      // funder: funder.publicKey,
       dev: dev.publicKey,
       devFund: dev_fund,
       devDeploy: dev_deploy,
       devDeployOffsets: dev_deploy_offsets,
-      // systemProgram: SystemProgram.programId,
     }).instruction();
+
     const instr_data = await program.methods.accountSizeData().accounts({
-      // funder: funder.publicKey,
       dev: dev.publicKey,
       devFund: dev_fund,
       devDeploy: dev_deploy,
       devDeployData: dev_deploy_data,
-      // systemProgram: SystemProgram.programId,
     }).instruction();
 
     let dataCount = 0;
@@ -149,44 +141,20 @@ describe("dev-capital", () => {
       dataCount+=1;
       transaction.add(instr_data)
     }
+
     let increaseCount = 0;
     while ((increaseCount*10240)<(offsets_len*2)+8) {
       increaseCount+=1;
       transaction.add(instr_offsets)
     }
-    // const transaction_copy = transaction;
-    // transaction_copy.feePayer = new PublicKey(0)
-    // transaction_copy.recentBlockhash = new PublicKey(0).toBase58()
-    // transaction_copy.sign(dev);
-
-    // const serialized = transaction_copy.serialize({
-    //   verifySignatures: false,
-    //   requireAllSignatures: false,
-    // })
-    // const tx_size = serialized.length + 1 + (transaction.signatures.length * 64);
-    // console.log(tx_size);
-    // const increaseCount = dataOrigLen/10240;
 
     try {
-
       const signature = await anchor.web3.sendAndConfirmTransaction(
         connection,
         transaction,
         [dev],
       );
       log(signature);
-      // console.log('SIGNATURE', signature);
-
-      // const tx = await program.methods.accountSize().accounts({
-      //   // funder: funder.publicKey,
-      //   dev: dev.publicKey,
-      //   devFund: dev_fund,
-      //   devDeploy: dev_deploy,
-      //   devDeployOffsets: dev_deploy_offsets,
-      //   devDeployData: dev_deploy_data,
-      //   systemProgram: SystemProgram.programId,
-      // }).signers([dev])/*.rpc()*/;
-      // log(tx);
     } catch (error) {
       console.log(error);
       error.logs.forEach(element => {
