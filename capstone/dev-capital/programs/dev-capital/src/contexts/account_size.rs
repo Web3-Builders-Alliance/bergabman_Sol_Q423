@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE};
 
-use crate::state::{DevDeploy, DevDeployData, DevDeployOffsets, DevFund};
+use crate::state::{DevConfig, DeployData, DeployOffsets, DevFund};
 
 #[derive(Accounts)]
 pub struct AccountSizeOffsets<'info> {
@@ -14,16 +14,16 @@ pub struct AccountSizeOffsets<'info> {
     pub dev_fund: Account<'info, DevFund>,
     #[account(
         // mut,
-        seeds = [b"dev_deploy", dev_fund.key().as_ref(), dev.key().as_ref()],
-        bump = dev_deploy.dev_deploy_bump
+        seeds = [b"dev_config", dev_fund.key().as_ref(), dev.key().as_ref()],
+        bump = dev_config.dev_config_bump
     )]
-    pub dev_deploy: Account<'info, DevDeploy>,
+    pub dev_config: Account<'info, DevConfig>,
     #[account(
         mut,
-        seeds = [b"dev_deploy_offsets", dev_fund.key().as_ref(), dev.key().as_ref()],
-        bump = dev_deploy.dev_deploy_offsets_bump
+        seeds = [b"deploy_offsets", dev_fund.key().as_ref(), dev.key().as_ref()],
+        bump = dev_config.deploy_offsets_bump
     )]
-    pub dev_deploy_offsets: AccountLoader<'info, DevDeployOffsets>,
+    pub deploy_offsets: AccountLoader<'info, DeployOffsets>,
 }
 
 #[derive(Accounts)]
@@ -38,21 +38,21 @@ pub struct AccountSizeData<'info> {
     pub dev_fund: Account<'info, DevFund>,
     #[account(
         // mut,
-        seeds = [b"dev_deploy", dev_fund.key().as_ref(), dev.key().as_ref()],
-        bump = dev_deploy.dev_deploy_bump
+        seeds = [b"dev_config", dev_fund.key().as_ref(), dev.key().as_ref()],
+        bump = dev_config.dev_config_bump
     )]
-    pub dev_deploy: Account<'info, DevDeploy>,
+    pub dev_config: Account<'info, DevConfig>,
     #[account(
         mut,
-        seeds = [b"dev_deploy_data", dev_fund.key().as_ref(), dev.key().as_ref()],
-        bump = dev_deploy.dev_deploy_data_bump
+        seeds = [b"deploy_data", dev_fund.key().as_ref(), dev.key().as_ref()],
+        bump = dev_config.deploy_data_bump
     )]
-    pub dev_deploy_data: AccountLoader<'info, DevDeployData>,
+    pub deploy_data: AccountLoader<'info, DeployData>,
 }
 
 impl<'info> AccountSizeOffsets<'info> {
     pub fn size_increase(&mut self) -> Result<()> {
-        let this_acc = self.dev_deploy_offsets.to_account_info();
+        let this_acc = self.deploy_offsets.to_account_info();
         let new_size = this_acc.try_borrow_data()?.len() + MAX_PERMITTED_DATA_INCREASE;
         let rent = Rent::get()?;
         let new_minimum_balance = rent.minimum_balance(new_size);
@@ -69,7 +69,7 @@ impl<'info> AccountSizeOffsets<'info> {
 
 impl<'info> AccountSizeData<'info> {
     pub fn size_increase(&mut self) -> Result<()> {
-        let this_acc = self.dev_deploy_data.to_account_info();
+        let this_acc = self.deploy_data.to_account_info();
         let new_size = this_acc.try_borrow_data()?.len() + MAX_PERMITTED_DATA_INCREASE;
         let rent = Rent::get()?;
         let new_minimum_balance = rent.minimum_balance(new_size);

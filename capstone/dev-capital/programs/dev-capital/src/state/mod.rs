@@ -1,11 +1,11 @@
 pub mod dev_fund;
 pub use dev_fund::*;
 
-pub mod dev_deploy;
-pub use dev_deploy::*;
+pub mod dev_config;
+pub use dev_config::*;
 
-pub mod dev_deploy_offsets;
-pub use dev_deploy_offsets::*;
+pub mod deploy_offsets;
+pub use deploy_offsets::*;
 
-pub mod dev_deploy_data;
-pub use dev_deploy_data::*;
+pub mod deploy_data;
+pub use deploy_data::*;

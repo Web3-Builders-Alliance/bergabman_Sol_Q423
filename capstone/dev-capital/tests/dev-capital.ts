@@ -41,21 +41,21 @@ describe("dev-capital", () => {
   program.programId)[0];
   console.log(`dev_fund pda key ${dev_fund}`);
 
-  const dev_deploy = PublicKey.findProgramAddressSync([
-    Buffer.from("dev_deploy"),
+  const dev_config = PublicKey.findProgramAddressSync([
+    Buffer.from("dev_config"),
     dev_fund.toBuffer(),
     dev.publicKey.toBuffer(),
   ],
   program.programId)[0];
 
-  const dev_deploy_offsets = PublicKey.findProgramAddressSync([
-    Buffer.from("dev_deploy_offsets"),
+  const deploy_offsets = PublicKey.findProgramAddressSync([
+    Buffer.from("deploy_offsets"),
     dev_fund.toBuffer(),
     dev.publicKey.toBuffer()
   ],
   program.programId)[0];
-  const dev_deploy_data = PublicKey.findProgramAddressSync([
-    Buffer.from("dev_deploy_data"),
+  const deploy_data = PublicKey.findProgramAddressSync([
+    Buffer.from("deploy_data"),
     dev_fund.toBuffer(),
     dev.publicKey.toBuffer()
   ],
@@ -99,9 +99,9 @@ describe("dev-capital", () => {
       const tx = await program.methods.initDevDeploy(50000*1, 50000*1, 286176*1,).accounts({
         dev: dev.publicKey,
         devFund: dev_fund,
-        devDeploy: dev_deploy,
-        devDeployOffsets: dev_deploy_offsets,
-        devDeployData: dev_deploy_data,
+        devConfig: dev_config,
+        deployOffsets: deploy_offsets,
+        deployData: deploy_data,
         systemProgram: SystemProgram.programId,
       }).signers([dev]).rpc();
       log(tx);
@@ -116,7 +116,7 @@ describe("dev-capital", () => {
 
   it("Accounts sized!", async () => {
     // Add your test here.
-    const devDeployFetched = await program.account.devDeploy.fetch(dev_deploy);
+    const devDeployFetched = await program.account.devConfig.fetch(dev_config);
     const dataOrigLen = devDeployFetched.dataOrigLen;
     const offsets_len = devDeployFetched.ot5Len + devDeployFetched.ot6Len;
     console.log(devDeployFetched);
@@ -125,15 +125,15 @@ describe("dev-capital", () => {
     const instr_offsets = await program.methods.accountSizeOffsets().accounts({
       dev: dev.publicKey,
       devFund: dev_fund,
-      devDeploy: dev_deploy,
-      devDeployOffsets: dev_deploy_offsets,
+      devConfig: dev_config,
+      deployOffsets: deploy_offsets,
     }).instruction();
 
     const instr_data = await program.methods.accountSizeData().accounts({
       dev: dev.publicKey,
       devFund: dev_fund,
-      devDeploy: dev_deploy,
-      devDeployData: dev_deploy_data,
+      devConfig: dev_config,
+      deployData: deploy_data,
     }).instruction();
 
     let dataCount = 0;
@@ -143,7 +143,7 @@ describe("dev-capital", () => {
     }
 
     let increaseCount = 0;
-    while ((increaseCount*10240)<(offsets_len*2)+8) {
+    while ((increaseCount*10240)<(offsets_len*3)+8) {
       increaseCount+=1;
       transaction.add(instr_offsets)
     }

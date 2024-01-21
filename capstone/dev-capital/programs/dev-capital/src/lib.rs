@@ -21,7 +21,7 @@ pub mod dev_capital {
         Ok(())
     }
     pub fn init_dev_deploy(
-        ctx: Context<InitDevDeploy>,
+        ctx: Context<InitDevConfig>,
         ot_6_len: u32,
         ot_5_len: u32,
         orig_len: u32,
@@ -31,7 +31,7 @@ pub mod dev_capital {
         // let offsets = ctx.accounts.dev_deploy_offsets.acc;
 
         ctx.accounts
-            .init_dev_deploy(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, orig_len)?;
+            .init_dev_config(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, orig_len)?;
 
         Ok(())
     }
@@ -40,11 +40,22 @@ pub mod dev_capital {
         ctx.accounts.size_increase()?;
         Ok(())
     }
-    
+
     pub fn account_size_data(ctx: Context<AccountSizeData>) -> Result<()> {
         ctx.accounts.size_increase()?;
         Ok(())
     }
+
+    pub fn deploy_offsets(ctx: Context<Deploy>, data: Vec<u8>) -> Result<()> {
+        ctx.accounts.deploy_offsets(&data)?;
+        Ok(())
+    }
+
+    // pub fn deploy_data(ctx: Context<Deploy>, data: Vec<u8>) -> Result<()> {
+    //     ctx.accounts.deploy_data(&data)?;
+    //     Ok(())
+    // }
+
     // pub fn dev_deploy(ctx: Context<DevDeploy>) -> Result<()> {
     //     Ok(())
     // }
