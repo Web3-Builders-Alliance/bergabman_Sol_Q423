@@ -7,11 +7,12 @@ author = "bergabman"
 [dependencies]
 clap = { version = "^4.4.16", features = ["derive"] }
 tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 anyhow = "^1.0.79"
 tokio = { version = "^1.35.1", features = ["full"] }
 solana-sdk = "1.17.17"
 solana-client = "1.17.17"
 amplify_num = "0.5.1"
-solana-idlgen = { git = "https://github.com/deanmlittle/solana-idlgen.git" }
+# solana-idlgen = { git = "https://github.com/deanmlittle/solana-idlgen.git" }
+solana-idlgen = { git = "https://github.com/bergabman/solana-idlgen.git" }
 borsh = { version = "1.2.0", features = ["derive"] }

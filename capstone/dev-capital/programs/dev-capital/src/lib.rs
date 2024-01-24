@@ -20,7 +20,7 @@ pub mod dev_capital {
         ctx.accounts.init_dev_fund(ctx.bumps.dev_fund, lamports)?;
         Ok(())
     }
-    pub fn init_dev_deploy(
+    pub fn init_dev_config(
         ctx: Context<InitDevConfig>,
         ot_6_len: u32,
         ot_5_len: u32,

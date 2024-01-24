@@ -36,7 +36,7 @@ idlgen!({
       ]
     },
     {
-      "name": "initDevDeploy",
+      "name": "initDevConfig",
       "accounts": [
         {
           "name": "dev",
@@ -280,9 +280,11 @@ idlgen!({
       }
     }
   ]
-,
+  ,
   "metadata": {
-      "address": "5MHA6ForrBUbPbom2x231cNsMCQvE4VCpQ7F6rKMt8bS"
+    "address": "5MHA6ForrBUbPbom2x231cNsMCQvE4VCpQ7F6rKMt8bS"
   }
+
+
 }
 );

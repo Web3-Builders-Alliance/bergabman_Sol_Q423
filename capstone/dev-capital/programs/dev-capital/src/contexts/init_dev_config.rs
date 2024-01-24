@@ -32,7 +32,7 @@ pub struct InitDevConfig<'info> {
     #[account(
         init,
         payer = dev,
-        space = 8,
+        space = 8 + 16,
         seeds = [b"deploy_offsets", dev_fund.key().as_ref(), dev.key().as_ref()],
         bump
     )]
@@ -40,7 +40,7 @@ pub struct InitDevConfig<'info> {
     #[account(
         init,
         payer = dev,
-        space = 8,
+        space = 8 + 16,
         seeds = [b"deploy_data", dev_fund.key().as_ref(), dev.key().as_ref()],
         bump
     )]
@@ -59,6 +59,8 @@ impl<'info> InitDevConfig<'info> {
     ) -> Result<()> {
 
         self.dev_config.init(ot_6_len, ot_5_len, orig_len, bumps)?;
+        self.deploy_offsets.load_init()?;
+        self.deploy_data.load_init()?;
 
         // let dev_fund_seeds = [
         //     b"dev_fund",
