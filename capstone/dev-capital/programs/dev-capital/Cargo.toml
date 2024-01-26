@@ -21,3 +21,4 @@ anchor-spl = "0.29.0"
 bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"]}
 ahash = "=0.8.6"
 arrayref = "0.3.7"
+amplify_num = "0.5.1"

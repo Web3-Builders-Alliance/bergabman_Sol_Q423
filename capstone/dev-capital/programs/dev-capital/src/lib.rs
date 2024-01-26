@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
-
+pub use amplify_num::u24;
 pub mod contexts;
 // use contexts::*;
 pub mod state;
 use crate::contexts::*;
-use crate::state::dev_fund::DevFund;
 
 declare_id!("5MHA6ForrBUbPbom2x231cNsMCQvE4VCpQ7F6rKMt8bS");
 
@@ -51,12 +50,14 @@ pub mod dev_capital {
         Ok(())
     }
 
-    // pub fn deploy_data(ctx: Context<Deploy>, data: Vec<u8>) -> Result<()> {
-    //     ctx.accounts.deploy_data(&data)?;
-    //     Ok(())
-    // }
+    pub fn deploy_data(ctx: Context<Deploy>, data: Vec<u8>) -> Result<()> {
+        ctx.accounts.deploy_data(&data)?;
+        Ok(())
+    }
 
-    // pub fn dev_deploy(ctx: Context<DevDeploy>) -> Result<()> {
-    //     Ok(())
-    // }
+    pub fn decompress_data(ctx: Context<Deploy>) -> Result<()> {
+        ctx.accounts.decompress_data()?;
+
+        Ok(())
+    }
 }

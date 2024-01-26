@@ -171,6 +171,42 @@ idlgen!({
           "type": "bytes"
         }
       ]
+    },
+    {
+      "name": "deployData",
+      "accounts": [
+        {
+          "name": "dev",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "devFund",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "devConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "deployOffsets",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "deployData",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "data",
+          "type": "bytes"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -274,12 +310,9 @@ idlgen!({
         ]
       }
     }
-  ]
-  ,
+  ],
   "metadata": {
     "address": "5MHA6ForrBUbPbom2x231cNsMCQvE4VCpQ7F6rKMt8bS"
   }
-
-
 }
 );

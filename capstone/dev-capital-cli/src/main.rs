@@ -21,7 +21,7 @@ use tracing_subscriber::{self, EnvFilter};
 mod compress;
 mod program_idl;
 use crate::program_idl::{
-    DeployOffsetsArgs, DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs,
+    DeployDataArgs, DeployOffsetsArgs, DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs
 };
 
 const DEVNET_URL: &str = "https://api.devnet.solana.com";
@@ -56,7 +56,8 @@ async fn main() -> Result<()> {
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::DEBUG.into())
         .from_env()?
-        .add_directive("hyper=info".parse()?);
+        .add_directive("hyper=info".parse()?)
+        .add_directive("reqwest=info".parse()?);
 
     tracing_subscriber::fmt()
         .with_env_filter(filter)
@@ -167,15 +168,18 @@ async fn main() -> Result<()> {
         offsets_chunks,
     )
     .await?;
-    // deploy_data().await?;
 
-    // send_data(
-    //     offsets_6,
-    //     offsets_5,
-    //     compressed_6and5,
-    //     original_program_bytes.len(),
-    // )
-    // .await?;
+    deploy_data(
+        &rpc_client,
+        recent_blockhash,
+        &dev_keypair,
+        &dev_fund_pda,
+        &dev_config_pda,
+        &deploy_offsets_pda,
+        &deploy_data_pda,
+        data_chunks,
+    )
+    .await?;
 
     debug!("program finished");
     Ok(())
@@ -297,7 +301,7 @@ async fn deploy_offsets(
             debug!("offset tx {:?}", &tx);
         }
         // let tx = rpc_client.send_transaction(&tx);
-        txs.push(send_offsets(rpc_client, tx));
+        txs.push(send_tx(rpc_client, tx));
     }
 
     let mut success_counter = 0;
@@ -308,18 +312,67 @@ async fn deploy_offsets(
         }
     }
 
-    debug!("success {}, chunks len {}", success_counter, chunks_len);
+    debug!("offsets deploy success {}, chunks len {}", success_counter, chunks_len);
 
     Ok(())
 }
 
-async fn send_offsets(rpc_client: &RpcClient, tx: Transaction) -> Result<Signature> {
+async fn send_tx(rpc_client: &RpcClient, tx: Transaction) -> Result<Signature> {
     let sig = rpc_client.send_transaction(&tx).await?;
     Ok(sig)
 }
 
-async fn deploy_data() -> Result<()> {
-    todo!()
+async fn deploy_data(
+    rpc_client: &RpcClient,
+    recent_blockhash: Hash,
+    dev: &Keypair,
+    dev_fund: &Pubkey,
+    dev_config: &Pubkey,
+    deploy_offsets: &Pubkey,
+    deploy_data: &Pubkey,
+    data_chunks: Vec<(u16, Vec<u8>)>,
+) -> Result<()> {
+    let mut txs = FuturesUnordered::new();
+    let chunks_len = data_chunks.len();
+    let mut toggled = false;
+    for (mut index, mut chunk) in data_chunks {
+        let mut this_chunk = vec![];
+        this_chunk.append(&mut index.to_le_bytes().to_vec());
+        this_chunk.append(&mut chunk);
+
+        let args = DeployDataArgs { data: this_chunk };
+
+        let tx = DevCapitalProgram::deploy_data(
+            &[
+                &dev.pubkey(),
+                dev_fund,
+                dev_config,
+                deploy_offsets,
+                deploy_data,
+            ],
+            &args,
+            Some(&dev.pubkey()),
+            &[dev],
+            recent_blockhash,
+        );
+        if !toggled {
+            toggled = true;
+            debug!("data tx {:?}", &tx);
+        }
+        txs.push(send_tx(rpc_client, tx));
+    }
+
+    let mut success_counter = 0;
+    while let Some(sig_result) = txs.next().await {
+        if let Ok(sig) = sig_result {
+            info!("DeployData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            success_counter += 1;
+        }
+    }
+
+    debug!("data deploy success {}, chunks len {}", success_counter, chunks_len);
+
+    Ok(())
 }
 
 async fn init_dev_config(
