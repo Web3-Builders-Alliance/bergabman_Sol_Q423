@@ -1,15 +1,16 @@
 use std::{collections::HashMap, fmt::Debug, fs::File, io::Read, path::PathBuf, str::FromStr};
 
 use amplify_num::u24;
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+use futures::{stream::FuturesUnordered, StreamExt};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::{hash, Hash},
     native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
-    signature::{read_keypair_file, Keypair},
+    signature::{read_keypair_file, Keypair, Signature},
     signer::Signer,
     system_program,
     transaction::Transaction,
@@ -19,7 +20,9 @@ use tracing_subscriber::{self, EnvFilter};
 
 mod compress;
 mod program_idl;
-use crate::program_idl::{DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs};
+use crate::program_idl::{
+    DeployOffsetsArgs, DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs,
+};
 
 const DEVNET_URL: &str = "https://api.devnet.solana.com";
 
@@ -151,7 +154,19 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    // deploy_offsets().await?;
+    let (offsets_chunks, data_chunks) = pack_it(offsets_6, offsets_5, compressed_6and5)?;
+
+    deploy_offsets(
+        &rpc_client,
+        recent_blockhash,
+        &dev_keypair,
+        &dev_fund_pda,
+        &dev_config_pda,
+        &deploy_offsets_pda,
+        &deploy_data_pda,
+        offsets_chunks,
+    )
+    .await?;
     // deploy_data().await?;
 
     // send_data(
@@ -230,13 +245,77 @@ async fn size_accounts(
         .await
         .expect("Failed to send transaction");
 
-    info!("AccountSizeData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature, );
+    info!("AccountSizeData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature);
 
     Ok(())
 }
 
-async fn deploy_offsets() -> Result<()> {
-    todo!()
+async fn deploy_offsets(
+    rpc_client: &RpcClient,
+    recent_blockhash: Hash,
+    dev: &Keypair,
+    dev_fund: &Pubkey,
+    dev_config: &Pubkey,
+    deploy_offsets: &Pubkey,
+    deploy_data: &Pubkey,
+    offsets_chunks: Vec<(u16, Vec<u8>)>,
+) -> Result<()> {
+    let mut txs = FuturesUnordered::new();
+    let chunks_len = offsets_chunks.len();
+    let mut toggled = false;
+    for (mut index, mut chunk) in offsets_chunks {
+        let mut this_chunk = vec![];
+        this_chunk.append(&mut index.to_le_bytes().to_vec());
+        this_chunk.append(&mut chunk);
+
+        let args = DeployOffsetsArgs { data: this_chunk };
+
+        // let ix = DevCapitalProgram::deploy_offsets_ix(&[
+        //     &dev.pubkey(),
+        //     dev_fund,
+        //     dev_config,
+        //     deploy_offsets,
+        //     deploy_data,
+
+        // ], &args);
+
+        let tx = DevCapitalProgram::deploy_offsets(
+            &[
+                &dev.pubkey(),
+                dev_fund,
+                dev_config,
+                deploy_offsets,
+                deploy_data,
+            ],
+            &args,
+            Some(&dev.pubkey()),
+            &[dev],
+            recent_blockhash,
+        );
+        if !toggled {
+            toggled = true;
+            debug!("offset tx {:?}", &tx);
+        }
+        // let tx = rpc_client.send_transaction(&tx);
+        txs.push(send_offsets(rpc_client, tx));
+    }
+
+    let mut success_counter = 0;
+    while let Some(sig_result) = txs.next().await {
+        if let Ok(sig) = sig_result {
+            info!("DeployOffsets tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            success_counter += 1;
+        }
+    }
+
+    debug!("success {}, chunks len {}", success_counter, chunks_len);
+
+    Ok(())
+}
+
+async fn send_offsets(rpc_client: &RpcClient, tx: Transaction) -> Result<Signature> {
+    let sig = rpc_client.send_transaction(&tx).await?;
+    Ok(sig)
 }
 
 async fn deploy_data() -> Result<()> {
@@ -257,7 +336,7 @@ async fn init_dev_config(
     deploy_data: &Pubkey,
 ) -> Result<()> {
     let args_fund = InitDevFundArgs {
-        lamports: 10 * LAMPORTS_PER_SOL,
+        lamports: 30 * LAMPORTS_PER_SOL,
     };
 
     let tx_fund = DevCapitalProgram::init_dev_fund(
@@ -300,16 +379,9 @@ async fn init_dev_config(
         &[&dev],
         recent_blockhash,
     );
-    // let mut thisthing = &tx.message.instructions.first().unwrap().data[..8];
-    // *thisthing =
-
-    // debug!("a {:?}", thisthing);
-    // debug!("b {:?}", &hash(b"global:initDevConfig").as_ref()[..8]);
-    // debug!("c {:?}", &hash(b"global:init_dev_config").as_ref()[..8]);
-    // debug!("{}", "initDevConfig".to_case(Case::Snake));
 
     let signature = rpc_client
-        .send_and_confirm_transaction(&tx_config)
+        .send_and_confirm_transaction_with_spinner(&tx_config)
         .await
         .expect("Failed to send transaction");
 
@@ -318,12 +390,11 @@ async fn init_dev_config(
     Ok(())
 }
 
-async fn send_data(
+fn pack_it(
     offsets_6: Vec<u8>,
     offsets_5: Vec<u8>,
     compressed_data: Vec<u8>,
-    orig_len: usize,
-) -> Result<()> {
+) -> Result<(Vec<(u16, Vec<u8>)>, Vec<(u16, Vec<u8>)>)> {
     let mut blob: Vec<u8> = vec![];
     let offsets_6_len: u24 = u24::try_from(offsets_6.len() as u32 / 3 as u32).unwrap();
     let offsets_5_len: u24 = u24::try_from(offsets_5.len() as u32 / 3 as u32).unwrap();
@@ -331,15 +402,12 @@ async fn send_data(
     blob.extend_from_slice(&offsets_6);
     blob.extend_from_slice(&offsets_5_len.to_le_bytes());
     blob.extend_from_slice(&offsets_5);
-    // blob.extend_from_slice(&compressed_data);
-    let offsets_chunks = split_to_chunks(&blob, 1000);
-    let data_chunks = split_to_chunks(&compressed_data, 1000);
+    let offsets_chunks = split_to_chunks(&blob, 900);
+    let data_chunks = split_to_chunks(&compressed_data, 900);
     debug!("Offsets chunks len {}", offsets_chunks.len());
     debug!("Data chunks len {}", data_chunks.len());
 
-    // let ix =  ;
-
-    Ok(())
+    Ok((offsets_chunks, data_chunks))
 }
 
 fn split_to_chunks(data: &Vec<u8>, chunk_size: usize) -> Vec<(u16, Vec<u8>)> {

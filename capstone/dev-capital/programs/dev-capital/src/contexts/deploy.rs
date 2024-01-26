@@ -1,3 +1,5 @@
+use std::{borrow::BorrowMut, cell::{Ref, RefMut}, ops::DerefMut};
+
 use anchor_lang::{
     prelude::*,
     solana_program::{
@@ -7,7 +9,7 @@ use anchor_lang::{
     system_program::{transfer, CreateAccount, Transfer},
     Bumps,
 };
-
+use arrayref::array_ref;
 use crate::state::{DevConfig, DeployData, DeployOffsets, DevFund, U24};
 
 #[derive(Accounts)]
@@ -39,14 +41,28 @@ pub struct Deploy<'info> {
         bump = dev_config.deploy_data_bump,
     )]
     pub deploy_data: AccountLoader<'info, DeployData>,
-    pub system_program: Program<'info, System>,
+    // pub system_program: Program<'info, System>,
 }
 
 impl<'info> Deploy<'info> {
     pub fn deploy_offsets(
         &mut self,
-        data: &[u8],
+        incoming: &[u8],
     ) -> Result<()> {
+        let offsets_pda = {self.deploy_offsets.to_account_info()};
+        let mut data = offsets_pda.try_borrow_mut_data()?;
+        let msg_index = {u16::from_le_bytes(array_ref!(&incoming,0,2).clone())}; // message index u16
+        let msg_len = incoming.len() - 2;
+        let start_offset = msg_index as usize * msg_len;
+
+        data
+            .get_mut(start_offset..start_offset+msg_len)
+            .ok_or(ProgramError::AccountBorrowFailed)?
+            .copy_from_slice(&incoming[2..]);
+
+        // let this_data = RefMut::map(data, |data| {
+        //     bytemuck::from_bytes_mut(&mut data.deref_mut()[10..])
+        // });
 
         // self.dev_deploy.init(ot_6_len, ot_5_len, orig_len, bumps)?;
 

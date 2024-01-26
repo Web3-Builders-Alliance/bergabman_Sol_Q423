@@ -163,11 +163,6 @@ idlgen!({
           "name": "deployData",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
