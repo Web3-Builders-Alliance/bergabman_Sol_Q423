@@ -23,6 +23,7 @@ pub mod dev_capital {
         ctx: Context<InitDevConfig>,
         ot_6_len: u32,
         ot_5_len: u32,
+        comp_len: u32,
         orig_len: u32,
     ) -> Result<()> {
         // initializes deploy pda and data account
@@ -30,7 +31,7 @@ pub mod dev_capital {
         // let offsets = ctx.accounts.dev_deploy_offsets.acc;
 
         ctx.accounts
-            .init_dev_config(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, orig_len)?;
+            .init_dev_config(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, comp_len, orig_len)?;
 
         Ok(())
     }

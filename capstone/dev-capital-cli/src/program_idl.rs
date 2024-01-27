@@ -79,6 +79,10 @@ idlgen!({
           "type": "u32"
         },
         {
+          "name": "compLen",
+          "type": "u32"
+        },
+        {
           "name": "origLen",
           "type": "u32"
         }
@@ -207,6 +211,37 @@ idlgen!({
           "type": "bytes"
         }
       ]
+    },
+    {
+      "name": "decompressData",
+      "accounts": [
+        {
+          "name": "dev",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "devFund",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "devConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "deployOffsets",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "deployData",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -256,7 +291,15 @@ idlgen!({
             "type": "u32"
           },
           {
+            "name": "shiftingEnd",
+            "type": "u32"
+          },
+          {
             "name": "dataOrigLen",
+            "type": "u32"
+          },
+          {
+            "name": "dataCompLen",
             "type": "u32"
           },
           {
@@ -310,7 +353,8 @@ idlgen!({
         ]
       }
     }
-  ],
+  ]
+,
   "metadata": {
     "address": "5MHA6ForrBUbPbom2x231cNsMCQvE4VCpQ7F6rKMt8bS"
   }

@@ -55,10 +55,11 @@ impl<'info> InitDevConfig<'info> {
         bumps: InitDevConfigBumps,
         ot_6_len: u32,
         ot_5_len: u32,
+        comp_len: u32,
         orig_len: u32,
     ) -> Result<()> {
 
-        self.dev_config.init(ot_6_len, ot_5_len, orig_len, bumps)?;
+        self.dev_config.init(ot_6_len, ot_5_len, comp_len, orig_len, bumps)?;
         self.deploy_offsets.load_init()?;
         self.deploy_data.load_init()?;
 

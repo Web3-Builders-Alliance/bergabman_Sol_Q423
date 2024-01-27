@@ -72,6 +72,7 @@ impl<'info> Deploy<'info> {
         Ok(())
     }
 
+    #[allow(unused_variables, unused_mut)]
     pub fn decompress_data(&mut self) -> Result<()> {
 
         let offsets_pda = self.deploy_offsets.to_account_info();
@@ -83,12 +84,47 @@ impl<'info> Deploy<'info> {
         let mut offsets_6_index = self.dev_config.ot_6_index;
         let offsets_5_len = self.dev_config.ot_5_len;
         let mut offsets_5_index = self.dev_config.ot_5_index;
+        let mut shifting_end = self.dev_config.shifting_end;
         let offsets_6 = {&offsets_pda_data[3..offsets_6_len as usize]};
         let offsets_5 = {&offsets_pda_data[3+3+offsets_6_len as usize..offsets_5_len as usize]};
+
         
+        let mut shift_start = 0u32;
+        let mut shift_end = shifting_end;
+        let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(32000));
+        
+
         for i in 0..offsets_5_len/3 {
-            offsets_5_index = i;
-            let current_offset = u24::from_le_bytes(*array_ref!(&offsets_5, i as usize*3, 3));
+            offsets_5_index += 1;
+            shifting_end += 5;
+            let this_offset: u32 = u24::from_le_bytes(*array_ref![offsets_5, i as usize, 3]).into();
+
+
+            if shift_end.checked_sub(this_offset).ok_or(ProgramError::ArithmeticOverflow)? > tmp_buf.len() as u32 {
+                shift_start = shift_end - tmp_buf.len().into();
+                // (shift_end-shift_start).euc
+            } else {
+                shift_start = shift_end.checked_sub(this_offset).ok_or(ProgramError::ArithmeticOverflow)?;
+            }
+            shift_end = shift_start;
+
+            todo!();
+
+
+
+
+            // if let Some(full) = shift_end.checked_rem(i as u32) {
+            //     shift_start = shift_end-tmp_buf.capacity() as u32;
+
+            // } else {
+            //     shift_start = 
+            // }
+            // if shift_end.checked_rem(i).is_some() {
+            //     shift_start = shift_end.checked_rem(tmp_buf.capacity() as u32).unwrap();
+            // } else {
+            //     shift_start = shift_end.checked_rem(i);
+            // }
+            // let current_offset = u24::from_le_bytes(*array_ref!(&offsets_5, i as usize*3, 3));
             // let current_offset = u24::from_le_bytes(&offsets_5[i as usize..i as usize+3]);
 
 

@@ -96,7 +96,7 @@ describe("dev-capital", () => {
   it("Initialized dev deploy!", async () => {
 
     try {
-      const tx = await program.methods.initDevConfig(50000*1, 50000*1, 286176*1,).accounts({
+      const tx = await program.methods.initDevConfig(30000*1, 30000*1, 206000*1, 286176*1,).accounts({
         dev: dev.publicKey,
         devFund: dev_fund,
         devConfig: dev_config,

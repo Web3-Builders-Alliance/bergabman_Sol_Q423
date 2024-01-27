@@ -126,6 +126,7 @@ async fn main() -> Result<()> {
         init_dev_config(
             (offsets_6.len() * 3) as u32,
             (offsets_5.len() * 3) as u32,
+            compressed_6and5.len() as u32,
             original_program_bytes.len() as u32,
             &rpc_client,
             recent_blockhash,
@@ -378,6 +379,7 @@ async fn deploy_data(
 async fn init_dev_config(
     offsets_6_len: impl Into<u32>,
     offsets_5_len: impl Into<u32>,
+    compressed_len: impl Into<u32>,
     original_len: impl Into<u32>,
     rpc_client: &RpcClient,
     recent_blockhash: Hash,
@@ -415,6 +417,7 @@ async fn init_dev_config(
     let args_config = InitDevConfigArgs {
         ot_6_len: offsets_6_len.into(),
         ot_5_len: offsets_5_len.into(),
+        comp_len: compressed_len.into(),
         orig_len: original_len.into(),
     };
 

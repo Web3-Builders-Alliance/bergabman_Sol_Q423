@@ -10,7 +10,9 @@ pub struct DevConfig {
     pub ot_6_index: u32, // OffsetTableIndex
     pub ot_5_len: u32,
     pub ot_5_index: u32,
+    pub shifting_end: u32,
     pub data_orig_len: u32,
+    pub data_comp_len: u32,
     pub dev: Pubkey,
     pub dev_fund: Pubkey,
     pub deploy_offsets: Pubkey,
@@ -28,6 +30,7 @@ impl DevConfig {
         &mut self,
         ot_6_len: u32,
         ot_5_len: u32,
+        data_comp_len: u32,
         data_orig_len: u32,
         bumps: InitDevConfigBumps,
     ) -> Result<()> {
@@ -35,6 +38,7 @@ impl DevConfig {
         self.ot_6_index = 0;
         self.ot_5_len = ot_5_len;
         self.ot_5_index = 0;
+        self.shifting_end = data_comp_len;
         self.data_orig_len = data_orig_len;
         self.dev = self.dev.key();
         self.dev_fund = self.dev_fund.key();
