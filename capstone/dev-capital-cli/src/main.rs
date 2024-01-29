@@ -21,7 +21,7 @@ use tracing_subscriber::{self, EnvFilter};
 mod compress;
 mod program_idl;
 use crate::program_idl::{
-    DeployDataArgs, DeployOffsetsArgs, DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs
+    DeployDataArgs, DeployOffsetsArgs, DevCapitalProgram, InitDevConfigArgs, InitDevFundArgs,
 };
 
 const DEVNET_URL: &str = "https://api.devnet.solana.com";
@@ -142,19 +142,19 @@ async fn main() -> Result<()> {
         debug!("Dev config already initialized")
     }
 
-    size_accounts(
-        offsets_6.len() as u32,
-        offsets_5.len() as u32,
-        original_program_bytes.len() as u32,
-        &rpc_client,
-        recent_blockhash,
-        &dev_keypair,
-        &dev_fund_pda,
-        &dev_config_pda,
-        &deploy_offsets_pda,
-        &deploy_data_pda,
-    )
-    .await?;
+    // size_accounts(
+    //     offsets_6.len() as u32,
+    //     offsets_5.len() as u32,
+    //     original_program_bytes.len() as u32,
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    // )
+    // .await?;
 
     let (offsets_chunks, data_chunks) = pack_it(offsets_6, offsets_5, compressed_6and5)?;
 
@@ -170,7 +170,19 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    deploy_data(
+    // deploy_data(
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    //     data_chunks,
+    // )
+    // .await?;
+
+    decompress(
         &rpc_client,
         recent_blockhash,
         &dev_keypair,
@@ -178,11 +190,44 @@ async fn main() -> Result<()> {
         &dev_config_pda,
         &deploy_offsets_pda,
         &deploy_data_pda,
-        data_chunks,
     )
     .await?;
 
     debug!("program finished");
+    Ok(())
+}
+
+async fn decompress(
+    rpc_client: &RpcClient,
+    recent_blockhash: Hash,
+    dev: &Keypair,
+    dev_fund: &Pubkey,
+    dev_config: &Pubkey,
+    deploy_offsets: &Pubkey,
+    deploy_data: &Pubkey,
+) -> Result<()> {
+    let tx = DevCapitalProgram::decompress_data(
+        &[
+            &dev.pubkey(),
+            dev_fund,
+            dev_config,
+            deploy_offsets,
+            deploy_data,
+        ],
+        Some(&dev.pubkey()),
+        &[&dev],
+        recent_blockhash,
+    );
+    let signature = rpc_client
+        .send_and_confirm_transaction_with_spinner_and_commitment(
+            &tx,
+            CommitmentConfig::processed(),
+        )
+        .await
+        .expect("Failed to send transaction");
+
+info!("DecompressData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature);
+
     Ok(())
 }
 
@@ -308,12 +353,15 @@ async fn deploy_offsets(
     let mut success_counter = 0;
     while let Some(sig_result) = txs.next().await {
         if let Ok(sig) = sig_result {
-            info!("DeployOffsets tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            // info!("DeployOffsets tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
             success_counter += 1;
         }
     }
 
-    debug!("offsets deploy success {}, chunks len {}", success_counter, chunks_len);
+    debug!(
+        "offsets deploy success {}, chunks len {}",
+        success_counter, chunks_len
+    );
 
     Ok(())
 }
@@ -366,12 +414,15 @@ async fn deploy_data(
     let mut success_counter = 0;
     while let Some(sig_result) = txs.next().await {
         if let Ok(sig) = sig_result {
-            info!("DeployData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            // info!("DeployData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
             success_counter += 1;
         }
     }
 
-    debug!("data deploy success {}, chunks len {}", success_counter, chunks_len);
+    debug!(
+        "data deploy success {}, chunks len {}",
+        success_counter, chunks_len
+    );
 
     Ok(())
 }

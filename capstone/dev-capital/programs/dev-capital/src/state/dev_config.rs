@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 
 use crate::InitDevConfigBumps;
 
+#[derive(Debug)]
 #[account]
 pub struct DevConfig {
     pub ot_6_len: u32,   // OffsetTableLen
@@ -24,7 +25,7 @@ pub struct DevConfig {
 
 impl DevConfig {
     // pub const LEN: usize = 8 + std::mem::size_of::<DevDeploy>();
-    pub const INIT_LEN: usize = 8 + 4 + 4 + 4 + 4 + 4 + 32 + 32 + 32 + 32 + 1 + 1 + 1;
+    pub const INIT_LEN: usize = 8 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 32 + 32 + 32 + 32 + 1 + 1 + 1;
 
     pub fn init(
         &mut self,
@@ -39,6 +40,7 @@ impl DevConfig {
         self.ot_5_len = ot_5_len;
         self.ot_5_index = 0;
         self.shifting_end = data_comp_len;
+        self.data_comp_len = data_comp_len;
         self.data_orig_len = data_orig_len;
         self.dev = self.dev.key();
         self.dev_fund = self.dev_fund.key();

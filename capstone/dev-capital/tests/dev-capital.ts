@@ -104,7 +104,7 @@ describe("dev-capital", () => {
         deployData: deploy_data,
         systemProgram: SystemProgram.programId,
       }).signers([dev]).rpc();
-      log(tx);
+      // log(tx);
     } catch (error) {
       console.log(error);
       error.logs.forEach(element => {
@@ -119,7 +119,7 @@ describe("dev-capital", () => {
     const devDeployFetched = await program.account.devConfig.fetch(dev_config);
     const dataOrigLen = devDeployFetched.dataOrigLen;
     const offsets_len = devDeployFetched.ot5Len + devDeployFetched.ot6Len;
-    console.log(devDeployFetched);
+    // console.log(devDeployFetched);
     const transaction = new Transaction();
 
     const instr_offsets = await program.methods.accountSizeOffsets().accounts({
