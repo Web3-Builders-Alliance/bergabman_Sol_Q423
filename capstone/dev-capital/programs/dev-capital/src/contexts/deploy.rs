@@ -35,16 +35,21 @@ pub struct Deploy<'info> {
 
 impl<'info> Deploy<'info> {
     pub fn deploy_offsets(&mut self, incoming: &[u8]) -> Result<()> {
+        // msg!("incoming_offset {:?}", {&incoming[..20]});
         let offsets_pda = self.deploy_offsets.to_account_info();
         let mut data = offsets_pda.try_borrow_mut_data()?;
-        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2)) }; // message index u16
+        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2))};
         msg!("msg index {}", msg_index);
         let msg_len = { &incoming[2..].len() };
         msg!("msg len {}", msg_len);
         let static_len = 900;
-        let start_offset = msg_index as usize * static_len;
+        let start_offset: usize = if msg_index.clone() == 0 {
+            8.clone()
+        } else {
+            (8 + (msg_index as usize * static_len as usize)).clone()
+        };
 
-        data.get_mut(start_offset..start_offset + msg_len)
+        data.get_mut(start_offset..start_offset + *msg_len)
             .ok_or(ProgramError::AccountBorrowFailed)?
             .copy_from_slice(&incoming[2..]);
 
@@ -52,14 +57,22 @@ impl<'info> Deploy<'info> {
     }
 
     pub fn deploy_data(&mut self, incoming: &[u8]) -> Result<()> {
+        // msg!("incoming_data {:?}", {&incoming[..20]});
+
         let data_pda = self.deploy_data.to_account_info();
         let mut data = data_pda.try_borrow_mut_data()?;
         let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2)) };
+        msg!("msg index {}", msg_index);
         let msg_len = { &incoming[2..].len() };
+        msg!("msg len {}", msg_len);
         let static_len = 900;
-        let start_offset = msg_index as usize * static_len;
+        let start_offset: usize = if msg_index.clone() == 0 {
+            8.clone()
+        } else {
+            (8 + (msg_index as usize * static_len as usize)).clone()
+        };
 
-        data.get_mut(start_offset..start_offset + msg_len)
+        data.get_mut(start_offset..start_offset + *msg_len)
             .ok_or(ProgramError::AccountBorrowFailed)?
             .copy_from_slice(&incoming[2..]);
 
@@ -73,23 +86,25 @@ impl<'info> Deploy<'info> {
         let mut offsets_pda_data = offsets_pda.try_borrow_mut_data()?;
         let mut data_pda_data = data_pda.try_borrow_mut_data()?;
 
+        msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
         msg!("config {:#?}", &self.dev_config);
-        let offsets_6_len = self.dev_config.ot_6_len as usize;
+        let offsets_6_len = self.dev_config.ot_6_len as usize * 3;
         msg!("offsets_6_len from config {}", &offsets_6_len);
         let mut offsets_6_index = self.dev_config.ot_6_index;
-        let offsets_5_len = self.dev_config.ot_5_len as usize;
+        let offsets_5_len = self.dev_config.ot_5_len as usize * 3;
         msg!("offsets_5_len from config {}", &offsets_5_len);
         let mut offsets_5_index = self.dev_config.ot_5_index;
         let mut shifting_end = self.dev_config.shifting_end;
         msg!("shifting_end from config {}", &shifting_end);
         let offsets_6 = { &offsets_pda_data[8..offsets_6_len] };
         let offsets_5 = { &offsets_pda_data[8 + offsets_6_len..8 + offsets_6_len + offsets_5_len] };
+        msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
         msg!("offsets_5 {:?}", &offsets_5[..20]);
         msg!("offsets_6 {:?}", &offsets_6[..20]);
 
         let mut shift_start = 0u32;
         let mut shift_end = shifting_end;
-        let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(30000));
+        let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(25000));
         msg!("allocated temp buffer {}", &tmp_buf.capacity());
         sol_log_compute_units();
 
@@ -99,6 +114,7 @@ impl<'info> Deploy<'info> {
             offsets_5_index += 1;
             let this_offset: u32 =
                 u24::from_le_bytes(*array_ref![offsets_5, i as usize * 3, 3]).into();
+            msg!("this_offset {}", &this_offset);
             let to_move = shifting_end - this_offset;
             // msg!("to_move {}", &to_move);
             let whole_buf = to_move / tmp_buf.capacity() as u32;

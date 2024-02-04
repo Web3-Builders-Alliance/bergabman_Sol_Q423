@@ -163,6 +163,33 @@ describe("dev-capital", () => {
     }
     
   });
+
+
+
+  it("deploy offsets!", async () => {
+
+    try {
+      const tx = await program.methods.deployOffsets(Buffer.from([0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00])).accounts({
+        dev: dev.publicKey,
+        devFund: dev_fund,
+        devConfig: dev_config,
+        deployOffsets: deploy_offsets,
+        deployData: deploy_data,
+        // systemProgram: SystemProgram.programId,
+      }).signers([dev]).rpc();
+      log(tx);
+    } catch (error) {
+      console.log(error);
+      error.logs.forEach(element => {
+        console.log(element);
+      });
+    }
+    
+  });
+
+
+
+
 });
 
 

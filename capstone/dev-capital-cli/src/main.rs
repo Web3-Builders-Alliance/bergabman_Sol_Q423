@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, fs::File, io::Read, path::PathBuf, str::FromStr};
 
 use amplify_num::u24;
+use arrayref::array_ref;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use futures::{stream::FuturesUnordered, StreamExt};
@@ -186,16 +187,16 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    // decompress(
-    //     &rpc_client,
-    //     recent_blockhash,
-    //     &dev_keypair,
-    //     &dev_fund_pda,
-    //     &dev_config_pda,
-    //     &deploy_offsets_pda,
-    //     &deploy_data_pda,
-    // )
-    // .await?;
+    decompress(
+        &rpc_client,
+        recent_blockhash,
+        &dev_keypair,
+        &dev_fund_pda,
+        &dev_config_pda,
+        &deploy_offsets_pda,
+        &deploy_data_pda,
+    )
+    .await?;
 
     debug!("program finished");
     Ok(())
@@ -313,14 +314,14 @@ async fn deploy_offsets(
     dev_config: &Pubkey,
     deploy_offsets: &Pubkey,
     deploy_data: &Pubkey,
-    offsets_chunks: Vec<(u16, Vec<u8>)>,
+    offsets_chunks: Vec<([u8;2], Vec<u8>)>,
 ) -> Result<()> {
     let mut txs = FuturesUnordered::new();
     let chunks_len = offsets_chunks.len();
     let mut toggled = false;
     for (mut index, mut chunk) in offsets_chunks {
         let mut this_chunk = vec![];
-        this_chunk.append(&mut index.to_le_bytes().to_vec());
+        this_chunk.append(&mut index.to_vec());
         this_chunk.append(&mut chunk);
 
         let args = DeployOffsetsArgs { data: this_chunk };
@@ -348,7 +349,7 @@ async fn deploy_offsets(
     let mut success_counter = 0;
     while let Some(sig_result) = txs.next().await {
         if let Ok(sig) = sig_result {
-            // info!("DeployOffsets tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            info!("DeployOffsets tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
             success_counter += 1;
         }
     }
@@ -374,14 +375,14 @@ async fn deploy_data(
     dev_config: &Pubkey,
     deploy_offsets: &Pubkey,
     deploy_data: &Pubkey,
-    data_chunks: Vec<(u16, Vec<u8>)>,
+    data_chunks: Vec<([u8;2], Vec<u8>)>,
 ) -> Result<()> {
     let mut txs = FuturesUnordered::new();
     let chunks_len = data_chunks.len();
     let mut toggled = false;
     for (mut index, mut chunk) in data_chunks {
         let mut this_chunk = vec![];
-        this_chunk.append(&mut index.to_le_bytes().to_vec());
+        this_chunk.append(&mut index.to_vec());
         this_chunk.append(&mut chunk);
 
         let args = DeployDataArgs { data: this_chunk };
@@ -409,7 +410,7 @@ async fn deploy_data(
     let mut success_counter = 0;
     while let Some(sig_result) = txs.next().await {
         if let Ok(sig) = sig_result {
-            // info!("DeployData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
+            info!("DeployData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", sig);
             success_counter += 1;
         }
     }
@@ -502,7 +503,7 @@ fn pack_it(
     offsets_6: Vec<u8>,
     offsets_5: Vec<u8>,
     compressed_data: Vec<u8>,
-) -> Result<(Vec<(u16, Vec<u8>)>, Vec<(u16, Vec<u8>)>)> {
+) -> Result<(Vec<([u8;2], Vec<u8>)>, Vec<([u8;2], Vec<u8>)>)> {
     let mut blob: Vec<u8> = vec![];
     // let offsets_6_len: u24 = u24::try_from(offsets_6.len() as u32 / 3 as u32).unwrap();
     // let offsets_5_len: u24 = u24::try_from(offsets_5.len() as u32 / 3 as u32).unwrap();
@@ -518,11 +519,12 @@ fn pack_it(
     Ok((offsets_chunks, data_chunks))
 }
 
-fn split_to_chunks(data: &Vec<u8>, chunk_size: usize) -> Vec<(u16, Vec<u8>)> {
-    let mut data_chunks: Vec<(u16, Vec<u8>)> = vec![];
+fn split_to_chunks(data: &Vec<u8>, chunk_size: usize) -> Vec<([u8;2], Vec<u8>)> {
+    let mut data_chunks: Vec<([u8;2], Vec<u8>)> = vec![];
     for (index, chunk) in data.chunks(chunk_size).enumerate() {
-        data_chunks.push((index as u16, chunk.to_vec()));
+        data_chunks.push(((index as u16).to_le_bytes(), chunk.to_vec()));
     }
+    // debug!("split to chunks {:?}", &data_chunks[..3]);
     data_chunks
 }
 
@@ -537,6 +539,7 @@ fn compress_data(data: &Vec<u8>, needle_len: usize) -> Result<(Vec<u8>, Vec<u8>)
     let mut found_offsets: Vec<u8> = vec![];
     let mut compressed_data: Vec<u8> = vec![];
     let mut skip_counter = 0;
+    let mut count = 0;
 
     for index in 0..data.len() {
         if skip_counter > 0 {
@@ -545,8 +548,14 @@ fn compress_data(data: &Vec<u8>, needle_len: usize) -> Result<(Vec<u8>, Vec<u8>)
         }
         if index + needle.len() <= data.len() {
             if data[index..index + needle.len()] == needle {
-                // debug!("needle {:?}", )
                 // found_offsets.push(u24::try_from(index as u32).unwrap().to_le_bytes());
+                let mut offset_u24 = u24::try_from(index as u32).unwrap().to_le_bytes().to_vec();
+                if count < 5 {
+                    count+=1;
+                    debug!("found offset {}, le_bytes {:?}", u24::from_le_bytes(*array_ref![offset_u24, 0, 3]), offset_u24);
+                    debug!("found offsets {:?}", &found_offsets);
+
+                }
                 found_offsets
                     .append(&mut u24::try_from(index as u32).unwrap().to_le_bytes().to_vec());
                 skip_counter += needle.len() - 1;
@@ -555,6 +564,8 @@ fn compress_data(data: &Vec<u8>, needle_len: usize) -> Result<(Vec<u8>, Vec<u8>)
         }
         compressed_data.push(data[index]);
     }
+    debug!("orig: {:?}", &data[..200]);
+    debug!("comp: {:?}", &compressed_data[..200]);
 
     Ok((found_offsets, compressed_data))
 }

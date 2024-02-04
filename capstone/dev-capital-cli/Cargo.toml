@@ -17,3 +17,4 @@ amplify_num = "0.5.1"
 solana-idlgen = { git = "https://github.com/bergabman/solana-idlgen.git" }
 borsh = { version = "1.2.0", features = ["derive"] }
 futures = "0.3.30"
+arrayref = "0.3.7"
