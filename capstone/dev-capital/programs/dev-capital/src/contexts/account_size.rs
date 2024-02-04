@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE};
 
-use crate::state::{DevConfig, DeployData, DeployOffsets, DevFund};
+use crate::state::{DeployData, DeployOffsets, DevConfig, DevFund};
 
 #[derive(Accounts)]
 pub struct AccountSizeOffsets<'info> {

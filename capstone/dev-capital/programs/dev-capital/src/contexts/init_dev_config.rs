@@ -8,7 +8,7 @@ use anchor_lang::{
     Bumps,
 };
 
-use crate::state::{DevConfig, DeployData, DeployOffsets, DevFund, U24};
+use crate::state::{DeployData, DeployOffsets, DevConfig, DevFund, U24};
 
 #[derive(Accounts)]
 // #[instruction(seed: u64)]
@@ -58,8 +58,8 @@ impl<'info> InitDevConfig<'info> {
         comp_len: u32,
         orig_len: u32,
     ) -> Result<()> {
-
-        self.dev_config.init(ot_6_len, ot_5_len, comp_len, orig_len, bumps)?;
+        self.dev_config
+            .init(ot_6_len, ot_5_len, comp_len, orig_len, bumps)?;
         self.deploy_offsets.load_init()?;
         self.deploy_data.load_init()?;
 

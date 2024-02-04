@@ -1,7 +1,7 @@
+use crate::state::{DeployData, DeployOffsets, DevConfig, DevFund};
+use amplify_num::u24;
 use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use arrayref::array_ref;
-use crate::state::{DevConfig, DeployData, DeployOffsets, DevFund};
-use amplify_num::u24;
 
 #[derive(Accounts)]
 pub struct Deploy<'info> {
@@ -34,40 +34,32 @@ pub struct Deploy<'info> {
 }
 
 impl<'info> Deploy<'info> {
-    pub fn deploy_offsets(
-        &mut self,
-        incoming: &[u8],
-    ) -> Result<()> {
+    pub fn deploy_offsets(&mut self, incoming: &[u8]) -> Result<()> {
         let offsets_pda = self.deploy_offsets.to_account_info();
         let mut data = offsets_pda.try_borrow_mut_data()?;
-        let msg_index = {u16::from_le_bytes(*array_ref!(&incoming,0,2))}; // message index u16
+        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2)) }; // message index u16
         msg!("msg index {}", msg_index);
-        let msg_len = {&incoming[2..].len()};
+        let msg_len = { &incoming[2..].len() };
         msg!("msg len {}", msg_len);
         let static_len = 900;
         let start_offset = msg_index as usize * static_len;
 
-        data
-            .get_mut(start_offset..start_offset+msg_len)
+        data.get_mut(start_offset..start_offset + msg_len)
             .ok_or(ProgramError::AccountBorrowFailed)?
             .copy_from_slice(&incoming[2..]);
 
         Ok(())
     }
 
-    pub fn deploy_data(
-        &mut self,
-        incoming: &[u8],
-    ) -> Result<()> {
+    pub fn deploy_data(&mut self, incoming: &[u8]) -> Result<()> {
         let data_pda = self.deploy_data.to_account_info();
         let mut data = data_pda.try_borrow_mut_data()?;
-        let msg_index = {u16::from_le_bytes(*array_ref!(&incoming,0,2))};
-        let msg_len = {&incoming[2..].len()};
+        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2)) };
+        let msg_len = { &incoming[2..].len() };
         let static_len = 900;
         let start_offset = msg_index as usize * static_len;
 
-        data
-            .get_mut(start_offset..start_offset+msg_len)
+        data.get_mut(start_offset..start_offset + msg_len)
             .ok_or(ProgramError::AccountBorrowFailed)?
             .copy_from_slice(&incoming[2..]);
 
@@ -76,27 +68,25 @@ impl<'info> Deploy<'info> {
 
     #[allow(unused_assignments)]
     pub fn decompress_data(&mut self) -> Result<()> {
-
         let offsets_pda = self.deploy_offsets.to_account_info();
         let data_pda = self.deploy_data.to_account_info();
         let mut offsets_pda_data = offsets_pda.try_borrow_mut_data()?;
         let mut data_pda_data = data_pda.try_borrow_mut_data()?;
 
         msg!("config {:#?}", &self.dev_config);
-        let offsets_6_len = self.dev_config.ot_6_len;
+        let offsets_6_len = self.dev_config.ot_6_len as usize;
         msg!("offsets_6_len from config {}", &offsets_6_len);
         let mut offsets_6_index = self.dev_config.ot_6_index;
-        let offsets_5_len = self.dev_config.ot_5_len;
+        let offsets_5_len = self.dev_config.ot_5_len as usize;
         msg!("offsets_5_len from config {}", &offsets_5_len);
         let mut offsets_5_index = self.dev_config.ot_5_index;
         let mut shifting_end = self.dev_config.shifting_end;
         msg!("shifting_end from config {}", &shifting_end);
-        let offsets_6 = {&offsets_pda_data[3+3..offsets_6_len as usize]};
-        let offsets_5 = {&offsets_pda_data[offsets_6.len() as usize..offsets_6.len() as usize + offsets_5_len as usize]};
+        let offsets_6 = { &offsets_pda_data[8..offsets_6_len] };
+        let offsets_5 = { &offsets_pda_data[8 + offsets_6_len..8 + offsets_6_len + offsets_5_len] };
         msg!("offsets_5 {:?}", &offsets_5[..20]);
         msg!("offsets_6 {:?}", &offsets_6[..20]);
 
-        
         let mut shift_start = 0u32;
         let mut shift_end = shifting_end;
         let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(30000));
@@ -104,11 +94,12 @@ impl<'info> Deploy<'info> {
         sol_log_compute_units();
 
         let mut base_slice_end: Option<usize> = None;
-        
-        for i in 0..offsets_5_len/3 {
+
+        for i in 0..offsets_5_len {
             offsets_5_index += 1;
-            let this_offset: u32 = u24::from_le_bytes(*array_ref![offsets_5, i as usize *3, 3]).into();
-            let to_move = shifting_end-this_offset;
+            let this_offset: u32 =
+                u24::from_le_bytes(*array_ref![offsets_5, i as usize * 3, 3]).into();
+            let to_move = shifting_end - this_offset;
             // msg!("to_move {}", &to_move);
             let whole_buf = to_move / tmp_buf.capacity() as u32;
             // msg!("whole_buf {}", &whole_buf);
@@ -121,7 +112,7 @@ impl<'info> Deploy<'info> {
 
             // let base_slice_start = this_offset;
             let mut sub_slice_start = 0usize;
-            let mut sub_slice_end= 0usize;
+            let mut sub_slice_end = 0usize;
 
             for sub_slice_len in move_parts.iter() {
                 if let Some(base_slice_end) = base_slice_end {
@@ -130,28 +121,28 @@ impl<'info> Deploy<'info> {
                     sub_slice_end = shifting_end as usize;
                     shifting_end += 5;
                 }
-                sub_slice_start = sub_slice_end-sub_slice_len;
+                sub_slice_start = sub_slice_end - sub_slice_len;
                 base_slice_end = Some(sub_slice_start);
 
-                {tmp_buf.extend_from_slice(&data_pda_data[sub_slice_start..sub_slice_end]);}
+                {
+                    tmp_buf.extend_from_slice(&data_pda_data[sub_slice_start..sub_slice_end]);
+                }
 
                 data_pda_data
-                    .get_mut(sub_slice_start+5..sub_slice_end+5)
+                    .get_mut(sub_slice_start + 5..sub_slice_end + 5)
                     .ok_or(ProgramError::AccountBorrowFailed)?
                     .copy_from_slice(&tmp_buf);
                 tmp_buf.clear();
             }
             data_pda_data
-                    .get_mut(this_offset as usize..this_offset as usize + 5)
-                    .ok_or(ProgramError::AccountBorrowFailed)?
-                    .copy_from_slice(&[0u8;5]);
+                .get_mut(this_offset as usize..this_offset as usize + 5)
+                .ok_or(ProgramError::AccountBorrowFailed)?
+                .copy_from_slice(&[0u8; 5]);
 
             msg!("offset {} done", this_offset);
             sol_log_compute_units();
-
-
         }
-        
+
         Ok(())
     }
 }

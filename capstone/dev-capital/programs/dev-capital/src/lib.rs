@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 pub use amplify_num::u24;
+use anchor_lang::prelude::*;
 pub mod contexts;
 // use contexts::*;
 pub mod state;
@@ -30,8 +30,14 @@ pub mod dev_capital {
         // load dynamic sized accounts data
         // let offsets = ctx.accounts.dev_deploy_offsets.acc;
 
-        ctx.accounts
-            .init_dev_config(ctx.program_id, ctx.bumps, ot_6_len, ot_5_len, comp_len, orig_len)?;
+        ctx.accounts.init_dev_config(
+            ctx.program_id,
+            ctx.bumps,
+            ot_6_len,
+            ot_5_len,
+            comp_len,
+            orig_len,
+        )?;
 
         Ok(())
     }

@@ -8,6 +8,7 @@ use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::{hash, Hash},
+    instruction::CompiledInstruction,
     native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair, Signature},
@@ -89,6 +90,9 @@ async fn main() -> Result<()> {
     decompress_data(&offsets_6, 6, &mut test_decomp)?;
     debug!("orig sha256 hash  {}", hash(&original_program_bytes));
     debug!("decomp sha256 hash {}", hash(&test_decomp));
+    debug!("orig size {}", &original_program_bytes.len());
+    debug!("orig size packets {}", &original_program_bytes.len() / 900);
+    // debug!("comp size {}", &original_program_bytes.len());
 
     let rpc_client = RpcClient::new("http://localhost:8899".into());
     let recent_blockhash = rpc_client.get_latest_blockhash().await?;
@@ -124,8 +128,8 @@ async fn main() -> Result<()> {
         .is_none()
     {
         init_dev_config(
-            (offsets_6.len() * 3) as u32,
-            (offsets_5.len() * 3) as u32,
+            offsets_6.len() as u32,
+            offsets_5.len() as u32,
             compressed_6and5.len() as u32,
             original_program_bytes.len() as u32,
             &rpc_client,
@@ -142,19 +146,19 @@ async fn main() -> Result<()> {
         debug!("Dev config already initialized")
     }
 
-    // size_accounts(
-    //     offsets_6.len() as u32,
-    //     offsets_5.len() as u32,
-    //     original_program_bytes.len() as u32,
-    //     &rpc_client,
-    //     recent_blockhash,
-    //     &dev_keypair,
-    //     &dev_fund_pda,
-    //     &dev_config_pda,
-    //     &deploy_offsets_pda,
-    //     &deploy_data_pda,
-    // )
-    // .await?;
+    size_accounts(
+        offsets_6.len() as u32,
+        offsets_5.len() as u32,
+        original_program_bytes.len() as u32,
+        &rpc_client,
+        recent_blockhash,
+        &dev_keypair,
+        &dev_fund_pda,
+        &dev_config_pda,
+        &deploy_offsets_pda,
+        &deploy_data_pda,
+    )
+    .await?;
 
     let (offsets_chunks, data_chunks) = pack_it(offsets_6, offsets_5, compressed_6and5)?;
 
@@ -170,19 +174,7 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    // deploy_data(
-    //     &rpc_client,
-    //     recent_blockhash,
-    //     &dev_keypair,
-    //     &dev_fund_pda,
-    //     &dev_config_pda,
-    //     &deploy_offsets_pda,
-    //     &deploy_data_pda,
-    //     data_chunks,
-    // )
-    // .await?;
-
-    decompress(
+    deploy_data(
         &rpc_client,
         recent_blockhash,
         &dev_keypair,
@@ -190,8 +182,20 @@ async fn main() -> Result<()> {
         &dev_config_pda,
         &deploy_offsets_pda,
         &deploy_data_pda,
+        data_chunks,
     )
     .await?;
+
+    // decompress(
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    // )
+    // .await?;
 
     debug!("program finished");
     Ok(())
@@ -226,7 +230,7 @@ async fn decompress(
         .await
         .expect("Failed to send transaction");
 
-info!("DecompressData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature);
+    info!("DecompressData tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature);
 
     Ok(())
 }
@@ -243,7 +247,8 @@ async fn size_accounts(
     deploy_offsets_pda: &Pubkey,
     deploy_data_pda: &Pubkey,
 ) -> Result<()> {
-    let offsets_pda_len = 3 + 3 + ((offsets_5_len.into() * 3) + (offsets_6_len.into() * 3)); // 3+3 is the length of offset tables individually, u24+u24
+
+    let offsets_pda_len = offsets_5_len.into() + offsets_6_len.into();
     let data_pda_len = original_len.into();
     let mut account_resize_ixs = vec![];
 
@@ -320,15 +325,6 @@ async fn deploy_offsets(
 
         let args = DeployOffsetsArgs { data: this_chunk };
 
-        // let ix = DevCapitalProgram::deploy_offsets_ix(&[
-        //     &dev.pubkey(),
-        //     dev_fund,
-        //     dev_config,
-        //     deploy_offsets,
-        //     deploy_data,
-
-        // ], &args);
-
         let tx = DevCapitalProgram::deploy_offsets(
             &[
                 &dev.pubkey(),
@@ -346,7 +342,6 @@ async fn deploy_offsets(
             toggled = true;
             debug!("offset tx {:?}", &tx);
         }
-        // let tx = rpc_client.send_transaction(&tx);
         txs.push(send_tx(rpc_client, tx));
     }
 
@@ -459,15 +454,18 @@ async fn init_dev_config(
     );
 
     let signature = rpc_client
-        .send_and_confirm_transaction_with_spinner(&tx_fund)
+        .send_and_confirm_transaction_with_spinner_and_commitment(
+            &tx_fund,
+            CommitmentConfig::processed(),
+        )
         .await
         .expect("Failed to send transaction");
 
     info!("InitDevFund tx https://explorer.solana.com/transaction/{}?cluster=custom&customUrl=http://localhost:8899", signature, );
 
     let args_config = InitDevConfigArgs {
-        ot_6_len: offsets_6_len.into(),
-        ot_5_len: offsets_5_len.into(),
+        ot_6_len: offsets_6_len.into() / 3, // number of offsets
+        ot_5_len: offsets_5_len.into() / 3,
         comp_len: compressed_len.into(),
         orig_len: original_len.into(),
     };
@@ -488,7 +486,10 @@ async fn init_dev_config(
     );
 
     let signature = rpc_client
-        .send_and_confirm_transaction_with_spinner(&tx_config)
+        .send_and_confirm_transaction_with_spinner_and_commitment(
+            &tx_config,
+            CommitmentConfig::processed(),
+        )
         .await
         .expect("Failed to send transaction");
 
@@ -503,11 +504,11 @@ fn pack_it(
     compressed_data: Vec<u8>,
 ) -> Result<(Vec<(u16, Vec<u8>)>, Vec<(u16, Vec<u8>)>)> {
     let mut blob: Vec<u8> = vec![];
-    let offsets_6_len: u24 = u24::try_from(offsets_6.len() as u32 / 3 as u32).unwrap();
-    let offsets_5_len: u24 = u24::try_from(offsets_5.len() as u32 / 3 as u32).unwrap();
-    blob.extend_from_slice(&offsets_6_len.to_le_bytes());
+    // let offsets_6_len: u24 = u24::try_from(offsets_6.len() as u32 / 3 as u32).unwrap();
+    // let offsets_5_len: u24 = u24::try_from(offsets_5.len() as u32 / 3 as u32).unwrap();
+    // blob.extend_from_slice(&offsets_6_len.to_le_bytes());
     blob.extend_from_slice(&offsets_6);
-    blob.extend_from_slice(&offsets_5_len.to_le_bytes());
+    // blob.extend_from_slice(&offsets_5_len.to_le_bytes());
     blob.extend_from_slice(&offsets_5);
     let offsets_chunks = split_to_chunks(&blob, 900);
     let data_chunks = split_to_chunks(&compressed_data, 900);
