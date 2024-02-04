@@ -1,6 +1,6 @@
 use crate::state::{DeployData, DeployOffsets, DevConfig, DevFund};
 use amplify_num::u24;
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
+use anchor_lang::{prelude::*, solana_program::{compute_units::sol_remaining_compute_units, log::sol_log_compute_units}};
 use arrayref::array_ref;
 
 #[derive(Accounts)]
@@ -38,7 +38,7 @@ impl<'info> Deploy<'info> {
         // msg!("incoming_offset {:?}", {&incoming[..20]});
         let offsets_pda = self.deploy_offsets.to_account_info();
         let mut data = offsets_pda.try_borrow_mut_data()?;
-        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2))};
+        let msg_index = { u16::from_le_bytes(*array_ref!(&incoming, 0, 2)) };
         msg!("msg index {}", msg_index);
         let msg_len = { &incoming[2..].len() };
         msg!("msg len {}", msg_len);
@@ -86,77 +86,100 @@ impl<'info> Deploy<'info> {
         let mut offsets_pda_data = offsets_pda.try_borrow_mut_data()?;
         let mut data_pda_data = data_pda.try_borrow_mut_data()?;
 
-        msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
-        msg!("config {:#?}", &self.dev_config);
+        // msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
+        // msg!("config {:#?}", &self.dev_config);
         let offsets_6_len = self.dev_config.ot_6_len as usize * 3;
-        msg!("offsets_6_len from config {}", &offsets_6_len);
+        // msg!("offsets_6_len from config {}", &offsets_6_len);
         let mut offsets_6_index = self.dev_config.ot_6_index;
         let offsets_5_len = self.dev_config.ot_5_len as usize * 3;
-        msg!("offsets_5_len from config {}", &offsets_5_len);
+        // msg!("offsets_5_len from config {}", &offsets_5_len);
         let mut offsets_5_index = self.dev_config.ot_5_index;
         let mut shifting_end = self.dev_config.shifting_end;
-        msg!("shifting_end from config {}", &shifting_end);
+        // msg!("shifting_end from config {}", &shifting_end);
         let offsets_6 = { &offsets_pda_data[8..offsets_6_len] };
         let offsets_5 = { &offsets_pda_data[8 + offsets_6_len..8 + offsets_6_len + offsets_5_len] };
-        msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
-        msg!("offsets_5 {:?}", &offsets_5[..20]);
-        msg!("offsets_6 {:?}", &offsets_6[..20]);
+        // msg!("offsets_pda_data {:?}", { &offsets_pda_data[..20] });
+        // msg!("offsets_5 {:?}", &offsets_5[..20]);
+        // msg!("offsets_6 {:?}", &offsets_6[..20]);
 
-        let mut shift_start = 0u32;
-        let mut shift_end = shifting_end;
-        let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(25000));
+        // let mut shift_start = 0u32;
+        // let mut shift_end = shifting_end;
+        let mut tmp_buf: Box<Vec<u8>> = Box::new(Vec::with_capacity(30000));
         msg!("allocated temp buffer {}", &tmp_buf.capacity());
         sol_log_compute_units();
 
-        let mut base_slice_end: Option<usize> = None;
+        // let mut base_slice_end: Option<usize> = None;
+        let mut this_offset = 0u32;
+        let mut to_move = 0u32;
+        let mut move_chunks: Box<Vec<usize>> = Box::new(Vec::with_capacity(20));
+        let mut whole_buf = 0u32;
+        let mut part_buf = 0u32;
+        let mut chunk_start = 0usize;
+        let mut chunk_end = 0usize;
 
         for i in 0..offsets_5_len {
             offsets_5_index += 1;
-            let this_offset: u32 =
+            this_offset =
                 u24::from_le_bytes(*array_ref![offsets_5, i as usize * 3, 3]).into();
-            msg!("this_offset {}", &this_offset);
-            let to_move = shifting_end - this_offset;
+
+            if sol_remaining_compute_units() < 30_000 || sol_remaining_compute_units() > 1_370_000{
+                msg!("this_offset {}", &this_offset);
+                sol_log_compute_units();
+                if sol_remaining_compute_units() < 10_000 {
+                    msg!("{} compute unites left", sol_remaining_compute_units());
+                    msg!("current offsets5 index {} from {}", offsets_5_index, self.dev_config.ot_5_len);
+                    msg!("current offsets6 index {} from {}", offsets_6_index, self.dev_config.ot_6_len);
+                    break;
+                }
+               
+            }
+            
+            to_move = shifting_end - this_offset;
             // msg!("to_move {}", &to_move);
-            let whole_buf = to_move / tmp_buf.capacity() as u32;
+            whole_buf = to_move / tmp_buf.capacity() as u32;
             // msg!("whole_buf {}", &whole_buf);
-            let part_buf = to_move % tmp_buf.capacity() as u32;
+            part_buf = to_move % tmp_buf.capacity() as u32;
             // msg!("part_buf {}", &part_buf);
-            let mut move_parts = vec![tmp_buf.capacity(); whole_buf as usize];
-            move_parts.push(part_buf as usize);
-            msg!("move_parts {:?}", &move_parts);
-            sol_log_compute_units();
+            for _ in 0..whole_buf {
+                move_chunks.push(tmp_buf.capacity())
+            }
+            // move_chunks = Box::new(vec![tmp_buf.capacity(); whole_buf as usize]);
+            move_chunks.push(part_buf as usize);
+            // msg!("move_parts {:?}", &move_chunks);
+            // sol_log_compute_units();
 
             // let base_slice_start = this_offset;
-            let mut sub_slice_start = 0usize;
-            let mut sub_slice_end = 0usize;
+            // let mut sub_slice_start = 0usize;
+            chunk_end = shifting_end as usize;
+            // let mut chunk_start = 0usize;
+            shifting_end += 5;
 
-            for sub_slice_len in move_parts.iter() {
-                if let Some(base_slice_end) = base_slice_end {
-                    sub_slice_end = base_slice_end;
-                } else {
-                    sub_slice_end = shifting_end as usize;
-                    shifting_end += 5;
-                }
-                sub_slice_start = sub_slice_end - sub_slice_len;
-                base_slice_end = Some(sub_slice_start);
+            for chunk in move_chunks.iter() {
+                chunk_start = chunk_end
+                    .checked_sub(*chunk)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
 
                 {
-                    tmp_buf.extend_from_slice(&data_pda_data[sub_slice_start..sub_slice_end]);
+                    tmp_buf.extend(&data_pda_data[chunk_start..chunk_end]);
                 }
 
                 data_pda_data
-                    .get_mut(sub_slice_start + 5..sub_slice_end + 5)
+                    .get_mut(chunk_start + 5..chunk_end + 5)
                     .ok_or(ProgramError::AccountBorrowFailed)?
                     .copy_from_slice(&tmp_buf);
+
                 tmp_buf.clear();
+                // chunk_end = chunk_start;
             }
+            move_chunks.clear();
+
             data_pda_data
                 .get_mut(this_offset as usize..this_offset as usize + 5)
                 .ok_or(ProgramError::AccountBorrowFailed)?
                 .copy_from_slice(&[0u8; 5]);
 
-            msg!("offset {} done", this_offset);
-            sol_log_compute_units();
+            // msg!("offset {} done", this_offset);
+            // sol_log_compute_units();
         }
 
         Ok(())

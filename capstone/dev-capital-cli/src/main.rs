@@ -1,21 +1,13 @@
 use std::{collections::HashMap, fmt::Debug, fs::File, io::Read, path::PathBuf, str::FromStr};
 
 use amplify_num::u24;
-use arrayref::array_ref;
 use anyhow::Result;
+use arrayref::array_ref;
 use clap::{Parser, Subcommand};
 use futures::{stream::FuturesUnordered, StreamExt};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
-    hash::{hash, Hash},
-    instruction::CompiledInstruction,
-    native_token::LAMPORTS_PER_SOL,
-    pubkey::Pubkey,
-    signature::{read_keypair_file, Keypair, Signature},
-    signer::Signer,
-    system_program,
-    transaction::Transaction,
+    commitment_config::CommitmentConfig, compute_budget::ComputeBudgetInstruction, hash::{hash, Hash}, instruction::CompiledInstruction, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::{read_keypair_file, Keypair, Signature}, signer::Signer, system_program, transaction::Transaction
 };
 use tracing::{debug, info, level_filters::LevelFilter, Level};
 use tracing_subscriber::{self, EnvFilter};
@@ -147,45 +139,45 @@ async fn main() -> Result<()> {
         debug!("Dev config already initialized")
     }
 
-    size_accounts(
-        offsets_6.len() as u32,
-        offsets_5.len() as u32,
-        original_program_bytes.len() as u32,
-        &rpc_client,
-        recent_blockhash,
-        &dev_keypair,
-        &dev_fund_pda,
-        &dev_config_pda,
-        &deploy_offsets_pda,
-        &deploy_data_pda,
-    )
-    .await?;
+    // size_accounts(
+    //     offsets_6.len() as u32,
+    //     offsets_5.len() as u32,
+    //     original_program_bytes.len() as u32,
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    // )
+    // .await?;
 
-    let (offsets_chunks, data_chunks) = pack_it(offsets_6, offsets_5, compressed_6and5)?;
+    // let (offsets_chunks, data_chunks) = pack_it(offsets_6, offsets_5, compressed_6and5)?;
 
-    deploy_offsets(
-        &rpc_client,
-        recent_blockhash,
-        &dev_keypair,
-        &dev_fund_pda,
-        &dev_config_pda,
-        &deploy_offsets_pda,
-        &deploy_data_pda,
-        offsets_chunks,
-    )
-    .await?;
+    // deploy_offsets(
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    //     offsets_chunks,
+    // )
+    // .await?;
 
-    deploy_data(
-        &rpc_client,
-        recent_blockhash,
-        &dev_keypair,
-        &dev_fund_pda,
-        &dev_config_pda,
-        &deploy_offsets_pda,
-        &deploy_data_pda,
-        data_chunks,
-    )
-    .await?;
+    // deploy_data(
+    //     &rpc_client,
+    //     recent_blockhash,
+    //     &dev_keypair,
+    //     &dev_fund_pda,
+    //     &dev_config_pda,
+    //     &deploy_offsets_pda,
+    //     &deploy_data_pda,
+    //     data_chunks,
+    // )
+    // .await?;
 
     decompress(
         &rpc_client,
@@ -211,18 +203,24 @@ async fn decompress(
     deploy_offsets: &Pubkey,
     deploy_data: &Pubkey,
 ) -> Result<()> {
-    let tx = DevCapitalProgram::decompress_data(
+    let cp_budget = ComputeBudgetInstruction::set_compute_unit_limit(1_400_000u32);
+
+    let ix = DevCapitalProgram::decompress_data_ix(
         &[
             &dev.pubkey(),
             dev_fund,
             dev_config,
             deploy_offsets,
             deploy_data,
-        ],
+        ]
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[cp_budget, ix],
         Some(&dev.pubkey()),
-        &[&dev],
+        &[dev],
         recent_blockhash,
     );
+    
     let signature = rpc_client
         .send_and_confirm_transaction_with_spinner_and_commitment(
             &tx,
@@ -248,7 +246,6 @@ async fn size_accounts(
     deploy_offsets_pda: &Pubkey,
     deploy_data_pda: &Pubkey,
 ) -> Result<()> {
-
     let offsets_pda_len = offsets_5_len.into() + offsets_6_len.into();
     let data_pda_len = original_len.into();
     let mut account_resize_ixs = vec![];
@@ -314,7 +311,7 @@ async fn deploy_offsets(
     dev_config: &Pubkey,
     deploy_offsets: &Pubkey,
     deploy_data: &Pubkey,
-    offsets_chunks: Vec<([u8;2], Vec<u8>)>,
+    offsets_chunks: Vec<([u8; 2], Vec<u8>)>,
 ) -> Result<()> {
     let mut txs = FuturesUnordered::new();
     let chunks_len = offsets_chunks.len();
@@ -375,7 +372,7 @@ async fn deploy_data(
     dev_config: &Pubkey,
     deploy_offsets: &Pubkey,
     deploy_data: &Pubkey,
-    data_chunks: Vec<([u8;2], Vec<u8>)>,
+    data_chunks: Vec<([u8; 2], Vec<u8>)>,
 ) -> Result<()> {
     let mut txs = FuturesUnordered::new();
     let chunks_len = data_chunks.len();
@@ -503,7 +500,7 @@ fn pack_it(
     offsets_6: Vec<u8>,
     offsets_5: Vec<u8>,
     compressed_data: Vec<u8>,
-) -> Result<(Vec<([u8;2], Vec<u8>)>, Vec<([u8;2], Vec<u8>)>)> {
+) -> Result<(Vec<([u8; 2], Vec<u8>)>, Vec<([u8; 2], Vec<u8>)>)> {
     let mut blob: Vec<u8> = vec![];
     // let offsets_6_len: u24 = u24::try_from(offsets_6.len() as u32 / 3 as u32).unwrap();
     // let offsets_5_len: u24 = u24::try_from(offsets_5.len() as u32 / 3 as u32).unwrap();
@@ -519,8 +516,8 @@ fn pack_it(
     Ok((offsets_chunks, data_chunks))
 }
 
-fn split_to_chunks(data: &Vec<u8>, chunk_size: usize) -> Vec<([u8;2], Vec<u8>)> {
-    let mut data_chunks: Vec<([u8;2], Vec<u8>)> = vec![];
+fn split_to_chunks(data: &Vec<u8>, chunk_size: usize) -> Vec<([u8; 2], Vec<u8>)> {
+    let mut data_chunks: Vec<([u8; 2], Vec<u8>)> = vec![];
     for (index, chunk) in data.chunks(chunk_size).enumerate() {
         data_chunks.push(((index as u16).to_le_bytes(), chunk.to_vec()));
     }
@@ -551,10 +548,13 @@ fn compress_data(data: &Vec<u8>, needle_len: usize) -> Result<(Vec<u8>, Vec<u8>)
                 // found_offsets.push(u24::try_from(index as u32).unwrap().to_le_bytes());
                 let mut offset_u24 = u24::try_from(index as u32).unwrap().to_le_bytes().to_vec();
                 if count < 5 {
-                    count+=1;
-                    debug!("found offset {}, le_bytes {:?}", u24::from_le_bytes(*array_ref![offset_u24, 0, 3]), offset_u24);
+                    count += 1;
+                    debug!(
+                        "found offset {}, le_bytes {:?}",
+                        u24::from_le_bytes(*array_ref![offset_u24, 0, 3]),
+                        offset_u24
+                    );
                     debug!("found offsets {:?}", &found_offsets);
-
                 }
                 found_offsets
                     .append(&mut u24::try_from(index as u32).unwrap().to_le_bytes().to_vec());
